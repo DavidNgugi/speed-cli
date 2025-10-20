@@ -22,7 +22,7 @@ echo ""
 # Ask for expected speed from provider
 while true; do
     read -p "What's your expected download speed from your ISP? (Mbps): " EXPECTED_DOWNLOAD
-    if [[ "$EXPECTED_DOWNLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]] && (( $(echo "$EXPECTED_DOWNLOAD > 0" | bc -l) )); then
+    if [[ "$EXPECTED_DOWNLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]] && [[ "$EXPECTED_DOWNLOAD" != "0" ]] && [[ "$EXPECTED_DOWNLOAD" != "0.0" ]]; then
         break
     else
         echo -e "${RED}Please enter a valid positive number${NC}"
@@ -31,7 +31,7 @@ done
 
 while true; do
     read -p "What's your expected upload speed from your ISP? (Mbps): " EXPECTED_UPLOAD
-    if [[ "$EXPECTED_UPLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]] && (( $(echo "$EXPECTED_UPLOAD > 0" | bc -l) )); then
+    if [[ "$EXPECTED_UPLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]] && [[ "$EXPECTED_UPLOAD" != "0" ]] && [[ "$EXPECTED_UPLOAD" != "0.0" ]]; then
         break
     else
         echo -e "${RED}Please enter a valid positive number${NC}"
