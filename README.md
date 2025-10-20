@@ -8,7 +8,7 @@
                                                                          
 ```
 
-> Catch your ISP throttling you! Automatic hourly monitoring with a beautiful web dashboard.
+> Catch your ISP throttling you! Automatic monitoring with a beautiful web dashboard that runs in the background.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/DavidNgugi/speed-cli/releases)
@@ -44,12 +44,13 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/DavidNgugi/speed-cli/m
 bash install.sh
 ```
 
-That's it! The monitor is now running in the background.
+That's it! Both monitoring and dashboard are now running in the background.
 
 ## Features
 
 - **Automatic hourly monitoring** - Set it and forget it
-- **Beautiful web dashboard** - Real-time charts and stats
+- **Background web dashboard** - Always available at http://localhost:6432
+- **Real-time charts and stats** - Beautiful visualizations
 - **Smart alerts** - Get notified when speeds drop
 - **Historical data** - Track patterns over weeks
 - **CSV exports** - Perfect for ISP support tickets
@@ -61,8 +62,16 @@ That's it! The monitor is now running in the background.
 
 After installation:
 ```bash
-# Open web dashboard
+# Dashboard is already running at http://localhost:6432
+# But you can also use these commands:
+
+# Open web dashboard (interactive mode)
 speed dashboard
+
+# Manage dashboard service
+speed dashboard status  # Check if running
+speed dashboard start   # Start in background
+speed dashboard stop    # Stop service
 
 # Run a test immediately
 speed test
@@ -232,15 +241,18 @@ Visit `http://localhost:6432` to see:
 
 ### CLI Commands
 ```bash
-speed dashboard   # Start web dashboard (http://localhost:6432)
-speed test        # Run speed test now
-speed logs        # View recent logs
-speed alerts      # View performance alerts
-speed status      # Check if monitoring is running
-speed start       # Start background monitoring
-speed stop        # Stop background monitoring
-speed configure   # Configure expected speeds and monitoring frequency
-speed uninstall   # Remove everything (keeps logs)
+speed dashboard        # Start web dashboard (http://localhost:6432)
+speed dashboard start   # Start dashboard as background service
+speed dashboard stop    # Stop dashboard service
+speed dashboard status  # Check dashboard status
+speed test             # Run speed test now
+speed logs             # View recent logs
+speed alerts           # View performance alerts
+speed status           # Check if monitoring is running
+speed start            # Start background monitoring
+speed stop             # Stop background monitoring
+speed configure        # Configure expected speeds and monitoring frequency
+speed uninstall        # Remove everything (keeps logs)
 ```
 
 ## Update or Uninstall

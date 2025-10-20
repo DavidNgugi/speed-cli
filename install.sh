@@ -157,7 +157,7 @@ case "$PLATFORM" in
         LAUNCH_AGENT_DIR="$HOME/Library/LaunchAgents"
         mkdir -p "$LAUNCH_AGENT_DIR"
         
-        cat > "$LAUNCH_AGENT_DIR/com.user.internet.monitor.plist" << 'EOF'
+        cat > "$LAUNCH_AGENT_DIR/com.user.internet.monitor.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -167,16 +167,46 @@ case "$PLATFORM" in
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>$HOME/scripts/internet_monitor.sh</string>
+        <string>$INSTALL_DIR/internet_monitor.sh</string>
     </array>
     <key>StartInterval</key>
     <integer>$MONITOR_INTERVAL</integer>
     <key>RunAtLoad</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>$HOME/internet_logs/monitor_stdout.log</string>
+    <string>$LOG_DIR/monitor_stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>$HOME/internet_logs/monitor_stderr.log</string>
+    <string>$LOG_DIR/monitor_stderr.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>
+EOF
+        
+        # Create dashboard launch agent
+        cat > "$LAUNCH_AGENT_DIR/com.user.speed.dashboard.plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user.speed.dashboard</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>$INSTALL_DIR/speed_dashboard.py</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>$LOG_DIR/dashboard_stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>$LOG_DIR/dashboard_stderr.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
@@ -188,6 +218,10 @@ EOF
         
         launchctl unload "$LAUNCH_AGENT_DIR/com.user.internet.monitor.plist" 2>/dev/null || true
         launchctl load "$LAUNCH_AGENT_DIR/com.user.internet.monitor.plist"
+        
+        # Start dashboard service
+        launchctl unload "$LAUNCH_AGENT_DIR/com.user.speed.dashboard.plist" 2>/dev/null || true
+        launchctl load "$LAUNCH_AGENT_DIR/com.user.speed.dashboard.plist"
         ;;
     "linux")
         # Create systemd service for Linux
@@ -238,10 +272,16 @@ if [ -n "$SHELL_RC" ] && ! grep -q "internet-speed-monitor" "$SHELL_RC"; then
 fi
 
 echo ""
-echo -e "${GREEN}Installation complete! Restart your terminal to start monitoring.${NC}"
+echo -e "${GREEN}Installation complete! Both monitoring and dashboard are now running.${NC}"
 echo ""
-echo -e "${BLUE}Start using it:${NC}"
-echo "   speed dashboard    # Open web interface"
-echo "   speed test         # Run test now"
+echo -e "${BLUE}Available commands:${NC}"
+echo "   speed dashboard        # Open web interface (interactive)"
+echo "   speed dashboard start   # Start dashboard in background"
+echo "   speed dashboard stop    # Stop dashboard service"
+echo "   speed dashboard status  # Check dashboard status"
+echo "   speed test             # Run test now"
+echo "   speed logs             # View recent tests"
+echo "   speed status           # Check monitoring status"
 echo ""
 echo -e "${BLUE}Dashboard: http://localhost:${PORT}${NC}"
+echo -e "${GREEN}Both monitoring and dashboard are running automatically!${NC}"
