@@ -22,6 +22,7 @@ if [[ ! -t 0 ]] || [[ -n "$CI" ]] || [[ -n "$NONINTERACTIVE" ]] || [[ -z "$PS1" 
     EXPECTED_UPLOAD=20
     MONITOR_INTERVAL=1800  # 30 minutes
     echo -e "${BLUE}Using defaults: ${EXPECTED_DOWNLOAD} Mbps down, ${EXPECTED_UPLOAD} Mbps up, every 30 minutes${NC}"
+    echo -e "${YELLOW}💡 You can reconfigure later with: speed configure${NC}"
 else
     # Configuration prompts
     echo -e "${YELLOW}Let's configure your speed monitoring settings:${NC}"
@@ -320,6 +321,9 @@ echo "   speed dashboard status  # Check dashboard status"
 echo "   speed test             # Run test now"
 echo "   speed logs             # View recent tests"
 echo "   speed status           # Check monitoring status"
+echo "   speed configure        # Reconfigure settings (speeds & frequency)"
 echo ""
 echo -e "${BLUE}Dashboard: http://localhost:${PORT}${NC}"
 echo -e "${GREEN}Both monitoring and dashboard are running automatically!${NC}"
+echo ""
+echo -e "${YELLOW}💡 Tip: Run 'speed configure' to change your settings later${NC}"
