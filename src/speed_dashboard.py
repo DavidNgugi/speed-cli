@@ -213,6 +213,7 @@ class MonitorHandler(http.server.SimpleHTTPRequestHandler):
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
         let downloadChart, uploadChart, latencyChart;
 
@@ -237,24 +238,31 @@ class MonitorHandler(http.server.SimpleHTTPRequestHandler):
         }
 
         function updateStats(stats) {
+            const latestTime = stats.latest_timestamp ? new Date(stats.latest_timestamp).toLocaleString() : 'No data';
             const statsHtml = `
+                <div class="stat-card" style="border-left: 4px solid #667eea;">
+                    <div class="stat-label"><i class="fas fa-clock"></i> Latest Speed Test</div>
+                    <div class="stat-value">${stats.latest_download.toFixed(1)} <span class="stat-unit">Mbps</span></div>
+                    <div class="stat-sub">↓ ${stats.latest_download.toFixed(1)} Mbps | ↑ ${stats.latest_upload.toFixed(1)} Mbps | ${stats.latest_latency.toFixed(1)}ms</div>
+                    <div class="stat-sub" style="margin-top: 5px; font-size: 0.8em; color: #999;">${latestTime}</div>
+                </div>
                 <div class="stat-card">
-                    <div class="stat-label">Average Download</div>
+                    <div class="stat-label"><i class="fas fa-download"></i> Average Download</div>
                     <div class="stat-value">${stats.avg_download.toFixed(1)} <span class="stat-unit">Mbps</span></div>
                     <div class="stat-sub">Min: ${stats.min_download.toFixed(1)} | Max: ${stats.max_download.toFixed(1)}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Average Upload</div>
+                    <div class="stat-label"><i class="fas fa-upload"></i> Average Upload</div>
                     <div class="stat-value">${stats.avg_upload.toFixed(1)} <span class="stat-unit">Mbps</span></div>
                     <div class="stat-sub">Min: ${stats.min_upload.toFixed(1)} | Max: ${stats.max_upload.toFixed(1)}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Average Latency</div>
+                    <div class="stat-label"><i class="fas fa-bolt"></i> Average Latency</div>
                     <div class="stat-value">${stats.avg_latency.toFixed(1)} <span class="stat-unit">ms</span></div>
                     <div class="stat-sub">Min: ${stats.min_latency.toFixed(1)} | Max: ${stats.max_latency.toFixed(1)}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Connection Quality</div>
+                    <div class="stat-label"><i class="fas fa-chart-line"></i> Connection Quality</div>
                     <div class="stat-value">${stats.degraded_pct.toFixed(1)} <span class="stat-unit">%</span></div>
                     <div class="stat-sub">${stats.degraded_count} of ${stats.total_tests} tests degraded</div>
                 </div>
@@ -383,6 +391,7 @@ class MonitorHandler(http.server.SimpleHTTPRequestHandler):
                     if row['status'] not in ['FAILED', 'PARSE_ERROR']:
                         try:
                             data.append({
+                                'timestamp': row['timestamp'],
                                 'download': float(row['download_mbps']),
                                 'upload': float(row['upload_mbps']),
                                 'latency': float(row['latency_ms']),
@@ -404,13 +413,20 @@ class MonitorHandler(http.server.SimpleHTTPRequestHandler):
                 'min_latency': 0,
                 'max_latency': 0,
                 'degraded_count': 0,
-                'degraded_pct': 0
+                'degraded_pct': 0,
+                'latest_download': 0,
+                'latest_upload': 0,
+                'latest_latency': 0,
+                'latest_timestamp': None
             }
         else:
             downloads = [d['download'] for d in data]
             uploads = [d['upload'] for d in data]
             latencies = [d['latency'] for d in data]
             degraded = sum(1 for d in data if d['status'] == 'DEGRADED')
+            
+            # Get the latest test data
+            latest_test = data[-1] if data else None
             
             stats = {
                 'total_tests': len(data),
@@ -424,7 +440,11 @@ class MonitorHandler(http.server.SimpleHTTPRequestHandler):
                 'min_latency': min(latencies),
                 'max_latency': max(latencies),
                 'degraded_count': degraded,
-                'degraded_pct': (degraded / len(data) * 100) if data else 0
+                'degraded_pct': (degraded / len(data) * 100) if data else 0,
+                'latest_download': latest_test['download'] if latest_test else 0,
+                'latest_upload': latest_test['upload'] if latest_test else 0,
+                'latest_latency': latest_test['latency'] if latest_test else 0,
+                'latest_timestamp': latest_test['timestamp'] if latest_test else None
             }
         
         self.send_response(200)
