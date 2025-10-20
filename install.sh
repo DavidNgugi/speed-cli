@@ -38,8 +38,9 @@ while true; do
                 break
             fi
         fi
+    else
+        echo -e "${RED}Please enter a valid positive number${NC}"
     fi
-    echo -e "${RED}Please enter a valid positive number${NC}"
 done
 
 echo -e "${BLUE}Upload Speed:${NC}"
@@ -60,8 +61,9 @@ while true; do
                 break
             fi
         fi
+    else
+        echo -e "${RED}Please enter a valid positive number${NC}"
     fi
-    echo -e "${RED}Please enter a valid positive number${NC}"
 done
 
 # Ask for monitoring frequency
