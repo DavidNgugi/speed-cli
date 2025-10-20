@@ -10,6 +10,7 @@ import json
 import csv
 import glob
 import os
+import subprocess
 from urllib.parse import urlparse
 import statistics
 
@@ -453,11 +454,64 @@ class MonitorHandler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(json.dumps(stats).encode())
     
     def trigger_test(self):
-        os.system('launchctl start com.user.internet.monitor')
+        def find_monitor_script():
+            candidates = [
+                os.path.expanduser("~/scripts/internet_monitor.sh"),
+                os.path.join(os.path.dirname(__file__), "internet_monitor.sh"),
+            ]
+            for path in candidates:
+                if os.path.isfile(path) and os.access(path, os.X_OK):
+                    return path
+            # As a fallback, return first candidate even if not executable; subprocess might still run with bash
+            return candidates[0]
+
+        result = {
+            'status': 'error',
+            'message': 'Unknown error'
+        }
+
+        try:
+            script_path = find_monitor_script()
+            # Run a one-off test and log it
+            subprocess.run([script_path, '--test'], check=True, capture_output=True, text=True, timeout=180)
+
+            # Find latest CSV and parse last entry
+            pattern = os.path.join(LOG_DIR, "speed_log_*.csv")
+            csv_files = sorted(glob.glob(pattern))
+            if not csv_files:
+                result = {'status': 'error', 'message': 'No log files found after test run'}
+            else:
+                latest_file = csv_files[-1]
+                last_line = None
+                with open(latest_file, 'r') as f:
+                    reader = csv.reader(f)
+                    header = next(reader, None)
+                    for row in reader:
+                        if row and row[0] != 'timestamp':
+                            last_line = row
+                if last_line and len(last_line) >= 6:
+                    result = {
+                        'status': 'completed',
+                        'timestamp': last_line[0],
+                        'download_mbps': float(last_line[1] or 0),
+                        'upload_mbps': float(last_line[2] or 0),
+                        'latency_ms': float(last_line[3] or 0),
+                        'responsiveness_rpm': float(last_line[4] or 0),
+                        'quality': last_line[5]
+                    }
+                else:
+                    result = {'status': 'error', 'message': 'Could not read latest test result'}
+        except subprocess.TimeoutExpired:
+            result = {'status': 'error', 'message': 'Speed test timed out'}
+        except subprocess.CalledProcessError as e:
+            result = {'status': 'error', 'message': f'Test command failed: {e}'}
+        except Exception as e:
+            result = {'status': 'error', 'message': str(e)}
+
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        self.wfile.write(json.dumps({'status': 'triggered'}).encode())
+        self.wfile.write(json.dumps(result).encode())
 
 def main():
     with socketserver.TCPServer(("", PORT), MonitorHandler) as httpd:
