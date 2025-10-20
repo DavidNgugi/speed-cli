@@ -76,7 +76,7 @@ sed -i.bak "s/sha256 \"\"/sha256 \"$SHA256\"/" "$TAP_DIR/Formula/speed-cli.rb"
 rm "$TAP_DIR/Formula/speed-cli.rb.bak"
 
 # Update the formula with the correct version
-sed -i.bak "s/v1.0.0/v${VERSION}/g" "$TAP_DIR/Formula/speed-cli.rb"
+sed -i.bak "s/v1.0.1/v${VERSION}/g" "$TAP_DIR/Formula/speed-cli.rb"
 rm "$TAP_DIR/Formula/speed-cli.rb.bak"
 
 echo -e "${GREEN}SHA256: ${SHA256}${NC}"

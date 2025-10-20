@@ -5,7 +5,7 @@
 # Author: David Ngugi
 #
 
-VERSION="1.0.0"
+VERSION="1.0.1"
 SCRIPTS_DIR="$HOME/scripts"
 LOGS_DIR="$HOME/internet_logs"
 PLIST_FILE="$HOME/Library/LaunchAgents/com.user.internet.monitor.plist"

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2025-10-20
+
+### Added
+- Background dashboard service with automatic startup
+- New dashboard management commands (start, stop, status)
+- Enhanced installation process with both monitoring and dashboard services
+- Improved launch agent configuration with absolute paths
+- Updated documentation with dashboard management commands
+
+### Fixed
+- Fixed launch agent plist files to use absolute paths instead of $HOME variables
+- Resolved dashboard "Address already in use" errors
+- Improved service reliability and startup process
+
+### Changed
+- Dashboard now runs automatically in background after installation
+- Enhanced CLI help text with new dashboard commands
+- Updated Homebrew formula with new dashboard features
+- Improved user experience with both services running by default
+
 ## [1.0.0] - 2025-10-20
 
 ### Added
