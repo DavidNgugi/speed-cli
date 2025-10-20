@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2025-10-20
+
+### Fixed
+- Fixed installation script infinite loop issue
+- Removed dependency on `bc` command for input validation
+- Improved input validation to work across all platforms
+- Installation script now completes successfully without hanging
+
 ## [1.0.1] - 2025-10-20
 
 ### Added

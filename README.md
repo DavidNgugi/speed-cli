@@ -11,7 +11,7 @@
 > Catch your ISP throttling you! Automatic monitoring with a beautiful web dashboard that runs in the background.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)](https://github.com/DavidNgugi/speed-cli/releases)
+[![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)](https://github.com/DavidNgugi/speed-cli/releases)
 [![macOS](https://img.shields.io/badge/macOS-Big_Sur+-blue.svg)](https://www.apple.com/macos/)
 [![Linux](https://img.shields.io/badge/Linux-supported-green.svg)](https://www.linux.org/)
 [![Windows](https://img.shields.io/badge/Windows-supported-green.svg)](https://www.microsoft.com/windows/)
