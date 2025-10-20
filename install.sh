@@ -19,23 +19,49 @@ echo -e "${BLUE}Installing Speed CLI v${VERSION}...${NC}"
 echo -e "${YELLOW}Let's configure your speed monitoring settings:${NC}"
 echo ""
 
-# Ask for expected speed from provider
+# Ask for expected speed from provider with validation
+echo -e "${BLUE}Download Speed:${NC}"
 while true; do
-    read -p "What's your expected download speed from your ISP? (Mbps): " EXPECTED_DOWNLOAD
-    if [[ "$EXPECTED_DOWNLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]] && [[ "$EXPECTED_DOWNLOAD" != "0" ]] && [[ "$EXPECTED_DOWNLOAD" != "0.0" ]]; then
-        break
-    else
-        echo -e "${RED}Please enter a valid positive number${NC}"
+    read -p "What's your expected download speed from your ISP? (Mbps) [default: 100]: " EXPECTED_DOWNLOAD
+    EXPECTED_DOWNLOAD=${EXPECTED_DOWNLOAD:-100}
+    
+    # Check if it's a valid positive number
+    if [[ "$EXPECTED_DOWNLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        # Use bc if available, otherwise use awk for comparison
+        if command -v bc &> /dev/null; then
+            if (( $(echo "$EXPECTED_DOWNLOAD > 0" | bc -l) )); then
+                break
+            fi
+        else
+            # Fallback: check if it's greater than 0 using awk
+            if (( $(echo "$EXPECTED_DOWNLOAD" | awk '{print ($1 > 0)}') )); then
+                break
+            fi
+        fi
     fi
+    echo -e "${RED}Please enter a valid positive number${NC}"
 done
 
+echo -e "${BLUE}Upload Speed:${NC}"
 while true; do
-    read -p "What's your expected upload speed from your ISP? (Mbps): " EXPECTED_UPLOAD
-    if [[ "$EXPECTED_UPLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]] && [[ "$EXPECTED_UPLOAD" != "0" ]] && [[ "$EXPECTED_UPLOAD" != "0.0" ]]; then
-        break
-    else
-        echo -e "${RED}Please enter a valid positive number${NC}"
+    read -p "What's your expected upload speed from your ISP? (Mbps) [default: 20]: " EXPECTED_UPLOAD
+    EXPECTED_UPLOAD=${EXPECTED_UPLOAD:-20}
+    
+    # Check if it's a valid positive number
+    if [[ "$EXPECTED_UPLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        # Use bc if available, otherwise use awk for comparison
+        if command -v bc &> /dev/null; then
+            if (( $(echo "$EXPECTED_UPLOAD > 0" | bc -l) )); then
+                break
+            fi
+        else
+            # Fallback: check if it's greater than 0 using awk
+            if (( $(echo "$EXPECTED_UPLOAD" | awk '{print ($1 > 0)}') )); then
+                break
+            fi
+        fi
     fi
+    echo -e "${RED}Please enter a valid positive number${NC}"
 done
 
 # Ask for monitoring frequency
