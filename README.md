@@ -68,10 +68,6 @@ speed version
 
 Then visit **http://localhost:6432** in your browser!
 
-## Screenshots
-
-[Add screenshots here of the dashboard]
-
 ## What It Does
 
 1. Tests your internet speed every hour using native platform tools
