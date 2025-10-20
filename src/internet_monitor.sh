@@ -45,21 +45,28 @@ MAX_LOG_ENTRIES=$MAX_LOG_ENTRIES
 EOF
 }
 
-# Function to run speed test and display results
-run_speed_test() {
-    echo -e "${BLUE}Testing your internet speed...${NC}"
-    echo "This may take a few moments..."
-    echo ""
-    
-    # Check if networkquality is available (should be on macOS)
+# Function to detect platform
+detect_platform() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo "linux"
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]; then
+        echo "windows"
+    else
+        echo "unknown"
+    fi
+}
+
+# Function to run speed test on macOS
+run_speed_test_macos() {
     if ! command -v networkquality &> /dev/null; then
         print_status $RED "Error: networkquality command not found"
-        echo "This command is available on macOS. Please ensure you're running on macOS."
+        echo "This command is available on macOS Big Sur (11.0) or later."
         exit 1
     fi
     
-    # Run networkquality and format output
-    if networkquality 2>/dev/null | while read line; do
+    networkquality 2>/dev/null | while read line; do
         if [[ $line == *"Uplink capacity:"* ]]; then
             upload=$(echo "$line" | awk '{print $3}')
             echo -e "${BLUE}Upload: ${GREEN}${upload}${NC}"
@@ -73,7 +80,97 @@ run_speed_test() {
             responsiveness=$(echo "$line" | awk '{print $2}')
             echo -e "${BLUE}Responsiveness: ${GREEN}${responsiveness}${NC}"
         fi
-    done; then
+    done
+}
+
+# Function to run speed test on Linux
+run_speed_test_linux() {
+    # Use wget to download a test file and measure speed
+    local test_url="http://speedtest.wdc01.softlayer.com/downloads/test10.zip"
+    local temp_file="/tmp/speed_test_$$"
+    
+    if ! command -v wget &> /dev/null; then
+        print_status $RED "Error: wget command not found"
+        echo "Please install wget: sudo apt-get install wget (Ubuntu/Debian) or sudo yum install wget (RHEL/CentOS)"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Downloading test file...${NC}"
+    local start_time=$(date +%s.%N)
+    if wget -q --progress=bar:force "$test_url" -O "$temp_file" 2>&1; then
+        local end_time=$(date +%s.%N)
+        local duration=$(echo "$end_time - $start_time" | bc -l 2>/dev/null || echo "1")
+        local file_size=$(stat -c%s "$temp_file" 2>/dev/null || echo "10485760") # 10MB fallback
+        local speed_mbps=$(echo "scale=2; ($file_size * 8) / ($duration * 1024 * 1024)" | bc -l 2>/dev/null || echo "0")
+        
+        echo -e "${BLUE}Download: ${GREEN}${speed_mbps} Mbps${NC}"
+        echo -e "${BLUE}Upload: ${GREEN}Testing...${NC}"
+        echo -e "${BLUE}Latency: ${GREEN}Testing...${NC}"
+        
+        rm -f "$temp_file"
+    else
+        print_status $RED "Download test failed"
+        exit 1
+    fi
+}
+
+# Function to run speed test on Windows
+run_speed_test_windows() {
+    local test_url="http://speedtest.wdc01.softlayer.com/downloads/test10.zip"
+    local temp_file="$TEMP\\speed_test_$$.zip"
+    
+    # Use PowerShell to download and measure speed
+    local powershell_script="
+        \$startTime = Get-Date
+        try {
+            Invoke-WebRequest -Uri '$test_url' -OutFile '$temp_file' -UseBasicParsing
+            \$endTime = Get-Date
+            \$duration = (\$endTime - \$startTime).TotalSeconds
+            \$fileSize = (Get-Item '$temp_file').Length
+            \$speedMbps = [math]::Round((\$fileSize * 8) / (\$duration * 1024 * 1024), 2)
+            Write-Output \"Download: \$speedMbps Mbps\"
+            Remove-Item '$temp_file' -ErrorAction SilentlyContinue
+        } catch {
+            Write-Output 'Download test failed'
+            exit 1
+        }
+    "
+    
+    if command -v powershell &> /dev/null; then
+        powershell -Command "$powershell_script"
+    else
+        print_status $RED "Error: PowerShell not found"
+        echo "Please ensure PowerShell is available on your Windows system."
+        exit 1
+    fi
+}
+
+# Function to run speed test and display results
+run_speed_test() {
+    echo -e "${BLUE}Testing your internet speed...${NC}"
+    echo "This may take a few moments..."
+    echo ""
+    
+    local platform=$(detect_platform)
+    
+    case "$platform" in
+        "macos")
+            run_speed_test_macos
+            ;;
+        "linux")
+            run_speed_test_linux
+            ;;
+        "windows")
+            run_speed_test_windows
+            ;;
+        *)
+            print_status $RED "Unsupported platform: $OSTYPE"
+            echo "Supported platforms: macOS, Linux, Windows"
+            exit 1
+            ;;
+    esac
+    
+    if [ $? -eq 0 ]; then
         echo ""
         print_status $GREEN "✓ Speed test completed successfully!"
     else
@@ -85,13 +182,59 @@ run_speed_test() {
 # Function to log speed test result
 log_speed_test() {
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    local result=$(networkquality 2>/dev/null | grep -E "(Uplink|Downlink|Idle Latency|Responsiveness)" | tr '\n' ' ')
+    local platform=$(detect_platform)
+    local result=""
     
-    if [ $? -eq 0 ]; then
+    case "$platform" in
+        "macos")
+            result=$(networkquality 2>/dev/null | grep -E "(Uplink|Downlink|Idle Latency|Responsiveness)" | tr '\n' ' ')
+            ;;
+        "linux")
+            # Use wget for logging on Linux
+            local test_url="http://speedtest.wdc01.softlayer.com/downloads/test10.zip"
+            local temp_file="/tmp/speed_test_$$"
+            local start_time=$(date +%s.%N)
+            if wget -q "$test_url" -O "$temp_file" 2>/dev/null; then
+                local end_time=$(date +%s.%N)
+                local duration=$(echo "$end_time - $start_time" | bc -l 2>/dev/null || echo "1")
+                local file_size=$(stat -c%s "$temp_file" 2>/dev/null || echo "10485760")
+                local speed_mbps=$(echo "scale=2; ($file_size * 8) / ($duration * 1024 * 1024)" | bc -l 2>/dev/null || echo "0")
+                result="Download: ${speed_mbps} Mbps Upload: N/A Latency: N/A"
+                rm -f "$temp_file"
+            else
+                result="ERROR: Speed test failed"
+            fi
+            ;;
+        "windows")
+            # Use PowerShell for logging on Windows
+            local test_url="http://speedtest.wdc01.softlayer.com/downloads/test10.zip"
+            local temp_file="$TEMP\\speed_test_$$.zip"
+            local powershell_script="
+                \$startTime = Get-Date
+                try {
+                    Invoke-WebRequest -Uri '$test_url' -OutFile '$temp_file' -UseBasicParsing
+                    \$endTime = Get-Date
+                    \$duration = (\$endTime - \$startTime).TotalSeconds
+                    \$fileSize = (Get-Item '$temp_file').Length
+                    \$speedMbps = [math]::Round((\$fileSize * 8) / (\$duration * 1024 * 1024), 2)
+                    Write-Output \"Download: \$speedMbps Mbps Upload: N/A Latency: N/A\"
+                    Remove-Item '$temp_file' -ErrorAction SilentlyContinue
+                } catch {
+                    Write-Output 'ERROR: Speed test failed'
+                }
+            "
+            result=$(powershell -Command "$powershell_script" 2>/dev/null)
+            ;;
+        *)
+            result="ERROR: Unsupported platform"
+            ;;
+    esac
+    
+    if [[ "$result" != *"ERROR"* ]]; then
         echo "$timestamp - $result" >> "$LOG_FILE"
         print_status $GREEN "Speed test logged at $timestamp"
     else
-        echo "$timestamp - ERROR: Speed test failed" >> "$LOG_FILE"
+        echo "$timestamp - $result" >> "$LOG_FILE"
         print_status $RED "Speed test failed at $timestamp"
     fi
 }

@@ -4,7 +4,6 @@ set -e
 REPO_URL="https://raw.githubusercontent.com/DavidNgugi/speed-cli/main"
 INSTALL_DIR="$HOME/scripts"
 LOG_DIR="$HOME/internet_logs"
-LAUNCH_AGENT_DIR="$HOME/Library/LaunchAgents"
 PORT=6432
 
 RED='\033[0;31m'
@@ -15,12 +14,58 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}Installing Speed CLI...${NC}"
 
-if ! command -v networkquality &> /dev/null; then
-    echo -e "${RED}Error: Requires macOS Big Sur (11.0) or later${NC}"
-    exit 1
-fi
+# Detect platform
+detect_platform() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo "linux"
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]; then
+        echo "windows"
+    else
+        echo "unknown"
+    fi
+}
 
-mkdir -p "$INSTALL_DIR" "$LOG_DIR" "$LAUNCH_AGENT_DIR"
+PLATFORM=$(detect_platform)
+
+# Check platform-specific requirements
+case "$PLATFORM" in
+    "macos")
+        if ! command -v networkquality &> /dev/null; then
+            echo -e "${RED}Error: Requires macOS Big Sur (11.0) or later${NC}"
+            exit 1
+        fi
+        ;;
+    "linux")
+        if ! command -v wget &> /dev/null; then
+            echo -e "${YELLOW}Warning: wget not found. Installing wget...${NC}"
+            if command -v apt-get &> /dev/null; then
+                sudo apt-get update && sudo apt-get install -y wget bc
+            elif command -v yum &> /dev/null; then
+                sudo yum install -y wget bc
+            elif command -v dnf &> /dev/null; then
+                sudo dnf install -y wget bc
+            else
+                echo -e "${RED}Error: Please install wget and bc manually${NC}"
+                exit 1
+            fi
+        fi
+        ;;
+    "windows")
+        if ! command -v powershell &> /dev/null; then
+            echo -e "${RED}Error: PowerShell not found. Please install PowerShell.${NC}"
+            exit 1
+        fi
+        ;;
+    *)
+        echo -e "${RED}Error: Unsupported platform: $OSTYPE${NC}"
+        echo "Supported platforms: macOS, Linux, Windows"
+        exit 1
+        ;;
+esac
+
+mkdir -p "$INSTALL_DIR" "$LOG_DIR"
 
 echo -e "${BLUE}Downloading files...${NC}"
 curl -fsSL "$REPO_URL/src/internet_monitor.sh" -o "$INSTALL_DIR/internet_monitor.sh"
@@ -31,7 +76,13 @@ chmod +x "$INSTALL_DIR/internet_monitor.sh"
 chmod +x "$INSTALL_DIR/speed_dashboard.py"
 chmod +x "$INSTALL_DIR/speed"
 
-cat > "$LAUNCH_AGENT_DIR/com.user.internet.monitor.plist" << 'EOF'
+# Platform-specific service setup
+case "$PLATFORM" in
+    "macos")
+        LAUNCH_AGENT_DIR="$HOME/Library/LaunchAgents"
+        mkdir -p "$LAUNCH_AGENT_DIR"
+        
+        cat > "$LAUNCH_AGENT_DIR/com.user.internet.monitor.plist" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -59,9 +110,42 @@ cat > "$LAUNCH_AGENT_DIR/com.user.internet.monitor.plist" << 'EOF'
 </dict>
 </plist>
 EOF
+        
+        launchctl unload "$LAUNCH_AGENT_DIR/com.user.internet.monitor.plist" 2>/dev/null || true
+        launchctl load "$LAUNCH_AGENT_DIR/com.user.internet.monitor.plist"
+        ;;
+    "linux")
+        # Create systemd service for Linux
+        SERVICE_FILE="/etc/systemd/system/speed-monitor.service"
+        if [ -w "/etc/systemd/system" ]; then
+            sudo tee "$SERVICE_FILE" > /dev/null << EOF
+[Unit]
+Description=Speed Monitor
+After=network.target
 
-launchctl unload "$LAUNCH_AGENT_DIR/com.user.internet.monitor.plist" 2>/dev/null || true
-launchctl load "$LAUNCH_AGENT_DIR/com.user.internet.monitor.plist"
+[Service]
+Type=simple
+User=$USER
+ExecStart=/bin/bash $INSTALL_DIR/internet_monitor.sh
+Restart=always
+RestartSec=3600
+
+[Install]
+WantedBy=multi-user.target
+EOF
+            sudo systemctl daemon-reload
+            sudo systemctl enable speed-monitor.service
+            sudo systemctl start speed-monitor.service
+        else
+            echo -e "${YELLOW}Note: Cannot create systemd service. You may need to run monitoring manually.${NC}"
+        fi
+        ;;
+    "windows")
+        # Create Windows Task Scheduler entry
+        echo -e "${YELLOW}Note: Windows background service setup requires manual configuration.${NC}"
+        echo "Please set up a scheduled task to run: $INSTALL_DIR/internet_monitor.sh"
+        ;;
+esac
 
 "$INSTALL_DIR/internet_monitor.sh"
 

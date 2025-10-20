@@ -53,37 +53,79 @@ case "$1" in
         ;;
     
     status)
-        if launchctl list | grep -q "internet.monitor"; then
-            echo -e "${GREEN}Monitoring is running${NC}"
-            echo ""
-            launchctl list | grep internet.monitor
-            echo ""
-            if [ -f "$LOGS_DIR/speed_log_$(date +%Y-%m).csv" ]; then
-                ENTRIES=$(tail -n +2 "$LOGS_DIR/speed_log_$(date +%Y-%m).csv" | wc -l)
-                echo -e "${BLUE}Tests this month: $ENTRIES${NC}"
+        # Detect platform and check service status
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            if launchctl list | grep -q "internet.monitor"; then
+                echo -e "${GREEN}Monitoring is running${NC}"
+                echo ""
+                launchctl list | grep internet.monitor
+                echo ""
+                if [ -f "$LOGS_DIR/speed_log_$(date +%Y-%m).csv" ]; then
+                    ENTRIES=$(tail -n +2 "$LOGS_DIR/speed_log_$(date +%Y-%m).csv" | wc -l)
+                    echo -e "${BLUE}Tests this month: $ENTRIES${NC}"
+                fi
+            else
+                echo -e "${RED}Monitoring is not running${NC}"
+                echo "Start it with: speed start"
+            fi
+        elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+            if systemctl is-active --quiet speed-monitor.service 2>/dev/null; then
+                echo -e "${GREEN}Monitoring is running${NC}"
+                echo ""
+                systemctl status speed-monitor.service --no-pager
+                echo ""
+                if [ -f "$LOGS_DIR/speed_log_$(date +%Y-%m).csv" ]; then
+                    ENTRIES=$(tail -n +2 "$LOGS_DIR/speed_log_$(date +%Y-%m).csv" | wc -l)
+                    echo -e "${BLUE}Tests this month: $ENTRIES${NC}"
+                fi
+            else
+                echo -e "${RED}Monitoring is not running${NC}"
+                echo "Start it with: speed start"
             fi
         else
-            echo -e "${RED}Monitoring is not running${NC}"
-            echo "Start it with: speed start"
+            echo -e "${YELLOW}Service status check not implemented for this platform${NC}"
         fi
         ;;
     
     start)
-        if launchctl list | grep -q "internet.monitor"; then
-            echo -e "${YELLOW}Already running${NC}"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            if launchctl list | grep -q "internet.monitor"; then
+                echo -e "${YELLOW}Already running${NC}"
+            else
+                launchctl load "$PLIST_FILE"
+                echo -e "${GREEN}Monitoring started${NC}"
+                echo "Tests will run every hour automatically"
+            fi
+        elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+            if systemctl is-active --quiet speed-monitor.service 2>/dev/null; then
+                echo -e "${YELLOW}Already running${NC}"
+            else
+                sudo systemctl start speed-monitor.service
+                echo -e "${GREEN}Monitoring started${NC}"
+                echo "Tests will run every hour automatically"
+            fi
         else
-            launchctl load "$PLIST_FILE"
-            echo -e "${GREEN}Monitoring started${NC}"
-            echo "Tests will run every hour automatically"
+            echo -e "${YELLOW}Service management not implemented for this platform${NC}"
         fi
         ;;
     
     stop)
-        if launchctl list | grep -q "internet.monitor"; then
-            launchctl unload "$PLIST_FILE"
-            echo -e "${GREEN}Monitoring stopped${NC}"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            if launchctl list | grep -q "internet.monitor"; then
+                launchctl unload "$PLIST_FILE"
+                echo -e "${GREEN}Monitoring stopped${NC}"
+            else
+                echo -e "${YELLOW}Not running${NC}"
+            fi
+        elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+            if systemctl is-active --quiet speed-monitor.service 2>/dev/null; then
+                sudo systemctl stop speed-monitor.service
+                echo -e "${GREEN}Monitoring stopped${NC}"
+            else
+                echo -e "${YELLOW}Not running${NC}"
+            fi
         else
-            echo -e "${YELLOW}Not running${NC}"
+            echo -e "${YELLOW}Service management not implemented for this platform${NC}"
         fi
         ;;
     
