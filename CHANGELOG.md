@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.3] - 2025-01-27
+
+### Fixed
+- Fixed infinite loop issue in install script when running via `curl | bash`
+- Added non-interactive mode detection to prevent hanging during automated installation
+- Improved input validation with proper error handling and user feedback
+- Enhanced installation experience with automatic default settings for non-interactive mode
+
+### Added
+- Non-interactive installation mode with sensible defaults (100 Mbps down, 20 Mbps up, 30 min intervals)
+- User guidance messages about `speed configure` command for post-installation customization
+- Enhanced installation messages to inform users about reconfiguration options
+- Improved error handling for invalid input during interactive installation
+
+### Changed
+- Installation script now automatically detects non-interactive environments
+- Default settings are applied automatically when running via `curl | bash`
+- Enhanced user experience with clear guidance on available commands
+- Improved installation flow for both interactive and non-interactive modes
+
 ## [1.0.2] - 2025-10-20
 
 ### Fixed
