@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+VERSION="1.0.0"
 REPO_URL="https://raw.githubusercontent.com/DavidNgugi/speed-cli/main"
 INSTALL_DIR="$HOME/scripts"
 LOG_DIR="$HOME/internet_logs"
@@ -12,7 +13,7 @@ BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}Installing Speed CLI...${NC}"
+echo -e "${BLUE}Installing Speed CLI v${VERSION}...${NC}"
 
 # Detect platform
 detect_platform() {

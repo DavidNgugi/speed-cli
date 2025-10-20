@@ -5,6 +5,7 @@
 # Author: David Ngugi
 #
 
+VERSION="1.0.0"
 SCRIPTS_DIR="$HOME/scripts"
 LOGS_DIR="$HOME/internet_logs"
 PLIST_FILE="$HOME/Library/LaunchAgents/com.user.internet.monitor.plist"
@@ -164,6 +165,10 @@ case "$1" in
         fi
         ;;
     
+    version)
+        echo -e "${BLUE}Speed CLI v${VERSION}${NC}"
+        ;;
+    
     update)
         echo -e "${BLUE}Updating Internet Speed Monitor...${NC}"
         REPO_URL="https://raw.githubusercontent.com/DavidNgugi/speed-cli/main"
@@ -194,6 +199,7 @@ case "$1" in
         echo "  status      Check if monitoring is running"
         echo "  start       Start background monitoring"
         echo "  stop        Stop background monitoring"
+        echo "  version     Show current version"
         echo "  update      Update to latest version"
         echo "  uninstall   Remove Internet Speed Monitor"
         echo "  help        Show this help message"

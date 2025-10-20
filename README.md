@@ -11,6 +11,7 @@
 > Catch your ISP throttling you! Automatic hourly monitoring with a beautiful web dashboard.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/DavidNgugi/speed-cli/releases)
 [![macOS](https://img.shields.io/badge/macOS-Big_Sur+-blue.svg)](https://www.apple.com/macos/)
 [![Linux](https://img.shields.io/badge/Linux-supported-green.svg)](https://www.linux.org/)
 [![Windows](https://img.shields.io/badge/Windows-supported-green.svg)](https://www.microsoft.com/windows/)
@@ -60,6 +61,9 @@ speed logs
 
 # Check monitoring status
 speed status
+
+# Check version
+speed version
 ```
 
 Then visit **http://localhost:6432** in your browser!
@@ -210,6 +214,25 @@ speed start       # Start background monitoring
 speed stop        # Stop background monitoring
 speed uninstall   # Remove everything (keeps logs)
 ```
+
+## Update or Uninstall
+
+### Update to Latest Version
+```bash
+speed update
+```
+This downloads the latest scripts and restarts the background monitoring.
+
+### Check Current Version
+```bash
+speed version
+```
+
+### Uninstall
+```bash
+speed uninstall
+```
+This removes the tool but preserves your logs in `~/internet_logs/` (or `C:\Users\<You>\internet_logs\` on Windows).
 
 ## Configuration
 
