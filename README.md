@@ -1,16 +1,35 @@
-# Speed CLI
+```sh
+███████╗██████╗ ███████╗███████╗██████╗                ██████╗██╗     ██╗
+██╔════╝██╔══██╗██╔════╝██╔════╝██╔══██╗              ██╔════╝██║     ██║
+███████╗██████╔╝█████╗  █████╗  ██║  ██║    █████╗    ██║     ██║     ██║
+╚════██║██╔═══╝ ██╔══╝  ██╔══╝  ██║  ██║    ╚════╝    ██║     ██║     ██║
+███████║██║     ███████╗███████╗██████╔╝              ╚██████╗███████╗██║
+╚══════╝╚═╝     ╚══════╝╚══════╝╚═════╝                ╚═════╝╚══════╝╚═╝
+                                                                         
+```
 
 > Catch your ISP throttling you! Automatic hourly monitoring with a beautiful web dashboard.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![macOS](https://img.shields.io/badge/macOS-Big_Sur+-blue.svg)](https://www.apple.com/macos/)
+[![Linux](https://img.shields.io/badge/Linux-supported-green.svg)](https://www.linux.org/)
+[![Windows](https://img.shields.io/badge/Windows-supported-green.svg)](https://www.microsoft.com/windows/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
 ![Dashboard Preview](https://via.placeholder.com/800x400?text=Dashboard+Screenshot+Here)
 
 ## Quick Install
+
+### macOS & Linux
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DavidNgugi/speed-cli/main/install.sh | bash
+```
+
+### Windows (PowerShell)
+```powershell
+# Run in PowerShell as Administrator
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/DavidNgugi/speed-cli/main/install.sh" -OutFile "install.sh"
+bash install.sh
 ```
 
 That's it! The monitor is now running in the background.
@@ -22,8 +41,9 @@ That's it! The monitor is now running in the background.
 - **Smart alerts** - Get notified when speeds drop
 - **Historical data** - Track patterns over weeks
 - **CSV exports** - Perfect for ISP support tickets
-- **Privacy first** - All data stays on your Mac
-- **No browser required** - Uses native macOS tools
+- **Privacy first** - All data stays on your device
+- **No external dependencies** - Uses native platform tools
+- **Cross-platform** - Works on macOS, Linux, and Windows
 
 ## Quick Start
 
@@ -50,7 +70,7 @@ Then visit **http://localhost:6432** in your browser!
 
 ## What It Does
 
-1. Tests your internet speed every hour using macOS's native `networkquality` command
+1. Tests your internet speed every hour using native platform tools
 2. Logs download/upload speeds and latency to CSV files
 3. Provides a web dashboard to visualize trends
 4. Alerts you when speeds drop below your plan's thresholds
@@ -58,9 +78,115 @@ Then visit **http://localhost:6432** in your browser!
 
 ## Requirements
 
+### macOS
 - macOS Big Sur (11.0) or later
-- Python 3 (pre-installed on macOS)
-- 5 minutes of your time
+- Python 3 (pre-installed)
+
+### Linux
+- Any modern Linux distribution
+- `wget` and `bc` (auto-installed if missing)
+- `systemd` for background service
+
+### Windows
+- Windows 10 or later
+- PowerShell 5.1 or later
+- Git Bash or WSL (for installation)
+- Python 3 (for dashboard)
+
+## Platform-Specific Speed Testing
+
+- **macOS**: Uses native `networkquality` command
+- **Linux**: Uses `wget` with speed calculation
+- **Windows**: Uses PowerShell with speed calculation
+
+## Windows Setup Instructions
+
+### Prerequisites
+1. **Install Git for Windows** (includes Git Bash)
+   - Download from: https://git-scm.com/download/win
+   - This provides the bash environment needed for installation
+
+2. **Install Python 3**
+   - Download from: https://www.python.org/downloads/
+   - Make sure to check "Add Python to PATH" during installation
+
+### Installation Steps
+
+1. **Open Git Bash as Administrator**
+   ```bash
+   # Right-click Git Bash and "Run as administrator"
+   ```
+
+2. **Run the installation**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/DavidNgugi/speed-cli/main/install.sh | bash
+   ```
+
+3. **Set up background monitoring (Manual)**
+   
+   Since Windows doesn't have a built-in service manager like macOS/Linux, you'll need to set up a scheduled task:
+
+   **Option A: Using Task Scheduler (Recommended)**
+   1. Open "Task Scheduler" (search in Start menu)
+   2. Click "Create Basic Task"
+   3. Name: "Speed Monitor"
+   4. Trigger: "Daily" → "Recur every: 1 days"
+   5. Action: "Start a program"
+   6. Program: `C:\Program Files\Git\bin\bash.exe`
+   7. Arguments: `-c "~/scripts/internet_monitor.sh"`
+   8. Check "Run whether user is logged on or not"
+
+   **Option B: Using PowerShell (Alternative)**
+   ```powershell
+   # Create a scheduled task via PowerShell
+   $action = New-ScheduledTaskAction -Execute "C:\Program Files\Git\bin\bash.exe" -Argument "-c '~/scripts/internet_monitor.sh'"
+   $trigger = New-ScheduledTaskTrigger -Daily -At 12:00AM
+   $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+   Register-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -TaskName "Speed Monitor"
+   ```
+
+### Windows Usage
+
+After installation, you can use the CLI commands in Git Bash:
+
+```bash
+# Open Git Bash and run:
+speed dashboard   # Start web dashboard
+speed test        # Run speed test now
+speed logs        # View recent logs
+speed status      # Check monitoring status
+```
+
+### Windows File Locations
+
+```
+C:\Users\[YourUsername]\scripts\
+├── internet_monitor.sh    # Monitoring script
+├── speed_dashboard.py     # Web dashboard server
+└── speed                  # CLI tool
+
+C:\Users\[YourUsername]\internet_logs\
+├── speed_log_2025-01.csv  # Monthly CSV logs
+├── alerts.log             # Performance alerts
+└── monitor.log            # Service logs
+```
+
+### Windows Troubleshooting
+
+**If installation fails:**
+- Make sure you're running Git Bash as Administrator
+- Ensure Python 3 is installed and in PATH
+- Check that PowerShell is available
+
+**If speed tests fail:**
+- Ensure you have an active internet connection
+- Check Windows Firewall settings
+- Try running `speed test` manually to debug
+
+**If background monitoring doesn't work:**
+- Verify the scheduled task is created and enabled
+- Check Task Scheduler logs for errors
+- Manually run the monitoring script to test
 
 ## Usage
 
@@ -101,17 +227,42 @@ MAX_LATENCY=100   # Maximum latency (ms)
 
 ## File Locations
 
+### macOS & Linux
+```
 ~/scripts/
 ├── internet_monitor.sh    # Monitoring script
 ├── speed_dashboard.py     # Web dashboard server
 └── speed                  # CLI tool
+
 ~/internet_logs/
-├── speed_log_2025-10.csv  # Monthly CSV logs
+├── speed_log_2025-01.csv  # Monthly CSV logs
 ├── alerts.log             # Performance alerts
-├── monitor_stdout.log     # Service output
-└── monitor_stderr.log     # Service errors
+└── monitor.log            # Service logs
+
+# macOS only
 ~/Library/LaunchAgents/
 └── com.user.internet.monitor.plist  # Background service config
+
+# Linux only
+/etc/systemd/system/
+└── speed-monitor.service  # Background service config
+```
+
+### Windows
+```
+C:\Users\[YourUsername]\scripts\
+├── internet_monitor.sh    # Monitoring script
+├── speed_dashboard.py     # Web dashboard server
+└── speed                  # CLI tool
+
+C:\Users\[YourUsername]\internet_logs\
+├── speed_log_2025-01.csv  # Monthly CSV logs
+├── alerts.log             # Performance alerts
+└── monitor.log            # Service logs
+
+# Windows Task Scheduler
+# Check Task Scheduler for "Speed Monitor" task
+```
 
 ## Use Cases
 
@@ -126,6 +277,8 @@ MAX_LATENCY=100   # Maximum latency (ms)
 See [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for common issues.
 
 **Quick checks:**
+
+### macOS
 ```bash
 # Is the service running?
 launchctl list | grep internet.monitor
@@ -135,6 +288,30 @@ cat ~/internet_logs/monitor_stderr.log
 
 # Test manually
 ~/scripts/internet_monitor.sh
+```
+
+### Linux
+```bash
+# Is the service running?
+systemctl status speed-monitor.service
+
+# Check for errors
+journalctl -u speed-monitor.service
+
+# Test manually
+~/scripts/internet_monitor.sh
+```
+
+### Windows
+```bash
+# Check if scheduled task exists
+schtasks /query /tn "Speed Monitor"
+
+# Test manually in Git Bash
+~/scripts/internet_monitor.sh
+
+# Check logs
+cat ~/internet_logs/monitor.log
 ```
 
 ## Contributing
@@ -157,9 +334,10 @@ If this tool helped you catch your ISP or save money, give it a star!
 
 ## Acknowledgments
 
-- Built with macOS's native `networkquality` tool
+- Built with native platform tools (`networkquality` on macOS, `wget` on Linux, PowerShell on Windows)
 - Inspired by frustrated internet users everywhere
 - Made with ❤️ for people tired of paying for slow internet
+- Cross-platform support for macOS, Linux, and Windows users
 
 ---
 
