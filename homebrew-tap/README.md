@@ -27,8 +27,11 @@ speed configure
 # Start background monitoring
 speed start
 
-# Open the web dashboard
-speed dashboard
+# Dashboard management
+speed dashboard         # Interactive mode
+speed dashboard start   # Background service
+speed dashboard stop    # Stop service
+speed dashboard status  # Check status
 
 # Run a manual speed test
 speed test
@@ -44,8 +47,9 @@ The web dashboard will be available at: http://localhost:6432
 
 ## Features
 
-- **Automatic hourly monitoring** - Set it and forget it
-- **Beautiful web dashboard** - Real-time charts and stats
+- **Automatic monitoring** - Set it and forget it
+- **Background web dashboard** - Always available at http://localhost:6432
+- **Real-time charts and stats** - Beautiful visualizations
 - **Smart alerts** - Get notified when speeds drop
 - **Historical data** - Track patterns over weeks
 - **CSV exports** - Perfect for ISP support tickets
