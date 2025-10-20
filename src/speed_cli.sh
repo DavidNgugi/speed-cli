@@ -28,7 +28,7 @@ case "$1" in
     
     test)
         echo -e "${YELLOW}Running speed test...${NC}"
-        "$SCRIPTS_DIR/internet_monitor.sh"
+        "$SCRIPTS_DIR/internet_monitor.sh" --test
         ;;
     
     logs)

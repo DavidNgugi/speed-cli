@@ -45,10 +45,47 @@ MAX_LOG_ENTRIES=$MAX_LOG_ENTRIES
 EOF
 }
 
+# Function to run speed test and display results
+run_speed_test() {
+    echo -e "${BLUE}Testing your internet speed...${NC}"
+    echo "This may take a few moments..."
+    echo ""
+    
+    # Check if networkquality is available (should be on macOS)
+    if ! command -v networkquality &> /dev/null; then
+        print_status $RED "Error: networkquality command not found"
+        echo "This command is available on macOS. Please ensure you're running on macOS."
+        exit 1
+    fi
+    
+    # Run networkquality and format output
+    if networkquality 2>/dev/null | while read line; do
+        if [[ $line == *"Uplink capacity:"* ]]; then
+            upload=$(echo "$line" | awk '{print $3}')
+            echo -e "${BLUE}Upload: ${GREEN}${upload}${NC}"
+        elif [[ $line == *"Downlink capacity:"* ]]; then
+            download=$(echo "$line" | awk '{print $3}')
+            echo -e "${BLUE}Download: ${GREEN}${download}${NC}"
+        elif [[ $line == *"Idle Latency:"* ]]; then
+            latency=$(echo "$line" | awk '{print $3}')
+            echo -e "${BLUE}Latency: ${GREEN}${latency}${NC}"
+        elif [[ $line == *"Responsiveness:"* ]]; then
+            responsiveness=$(echo "$line" | awk '{print $2}')
+            echo -e "${BLUE}Responsiveness: ${GREEN}${responsiveness}${NC}"
+        fi
+    done; then
+        echo ""
+        print_status $GREEN "✓ Speed test completed successfully!"
+    else
+        print_status $RED "✗ Speed test failed. Please check your internet connection."
+        exit 1
+    fi
+}
+
 # Function to log speed test result
 log_speed_test() {
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    local result=$(speedtest-cli --simple 2>/dev/null | tr '\n' ' ')
+    local result=$(networkquality 2>/dev/null | grep -E "(Uplink|Downlink|Idle Latency|Responsiveness)" | tr '\n' ' ')
     
     if [ $? -eq 0 ]; then
         echo "$timestamp - $result" >> "$LOG_FILE"
@@ -79,6 +116,7 @@ show_help() {
     echo ""
     echo "Options:"
     echo "  -h, --help           Show this help message"
+    echo "  -t, --test           Run speed test now and display results"
     echo "  -i, --interval SEC   Set monitoring interval in seconds (default: 300)"
     echo "  -s, --start          Start monitoring in background"
     echo "  -k, --kill           Stop background monitoring"
@@ -173,6 +211,10 @@ while [[ $# -gt 0 ]]; do
             show_help
             exit 0
             ;;
+        -t|--test)
+            RUN_TEST=true
+            shift
+            ;;
         -i|--interval)
             INTERVAL="$2"
             shift 2
@@ -206,7 +248,9 @@ main() {
     setup_directories
     load_config
     
-    if [ "$START_MONITORING" = true ]; then
+    if [ "$RUN_TEST" = true ]; then
+        run_speed_test
+    elif [ "$START_MONITORING" = true ]; then
         start_monitoring
     elif [ "$STOP_MONITORING" = true ]; then
         stop_monitoring
