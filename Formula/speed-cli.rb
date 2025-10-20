@@ -37,7 +37,14 @@ class SpeedCli < Formula
         1. Run: speed configure
         2. Set your expected speeds and monitoring frequency
         3. Start monitoring: speed start
-        4. Open dashboard: speed dashboard
+        4. Start dashboard: speed dashboard start
+        5. Open browser to: http://localhost:6432
+
+      Dashboard commands:
+        speed dashboard         # Interactive mode
+        speed dashboard start   # Background service
+        speed dashboard stop    # Stop service
+        speed dashboard status  # Check status
 
       The web dashboard will be available at: http://localhost:6432
 
