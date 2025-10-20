@@ -21,7 +21,18 @@
 
 ## Quick Install
 
-### macOS & Linux
+### macOS (Homebrew) - Recommended
+```bash
+# Add the tap and install
+brew tap DavidNgugi/speed-cli
+brew install speed-cli
+
+# Configure and start
+speed configure
+speed start
+```
+
+### macOS & Linux (Direct Install)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DavidNgugi/speed-cli/main/install.sh | bash
 ```
