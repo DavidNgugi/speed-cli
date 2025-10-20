@@ -223,29 +223,36 @@ check_performance() {
     return $([ "$degraded" = true ] && echo 1 || echo 0)
 }
 
-# Function to log speed test result
+# Function to log speed test result to CSV
 log_speed_test() {
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
     local platform=$(detect_platform)
-    local result=""
+    local download_speed=0
+    local upload_speed=0
+    local latency=0
+    local responsiveness=0
+    local status="OK"
     
     case "$platform" in
         "macos")
             local network_output=$(networkquality 2>/dev/null)
-            local download_speed=$(echo "$network_output" | grep "Downlink capacity:" | awk '{print $3}' | sed 's/Mbps//')
-            local upload_speed=$(echo "$network_output" | grep "Uplink capacity:" | awk '{print $3}' | sed 's/Mbps//')
-            local latency=$(echo "$network_output" | grep "Idle Latency:" | awk '{print $3}' | sed 's/ms//')
+            download_speed=$(echo "$network_output" | grep "Downlink capacity:" | awk '{print $3}' | sed 's/Mbps//')
+            upload_speed=$(echo "$network_output" | grep "Uplink capacity:" | awk '{print $3}' | sed 's/Mbps//')
+            latency=$(echo "$network_output" | grep "Idle Latency:" | awk '{print $3}' | sed 's/ms//')
+            responsiveness=$(echo "$network_output" | grep "Responsiveness:" | awk '{print $2}' | sed 's/rpm//')
             
             # Set defaults if values are empty
             download_speed=${download_speed:-0}
             upload_speed=${upload_speed:-0}
             latency=${latency:-0}
+            responsiveness=${responsiveness:-0}
             
-            # Check performance and log results
-            check_performance "$download_speed" "$upload_speed" "$latency"
-            local performance_status=$?
-            
-            result="Download: ${download_speed} Mbps Upload: ${upload_speed} Mbps Latency: ${latency}ms"
+            # Check performance and set status
+            if check_performance "$download_speed" "$upload_speed" "$latency"; then
+                status="DEGRADED"
+            else
+                status="OK"
+            fi
             ;;
         "linux")
             # Use wget for logging on Linux
@@ -256,18 +263,21 @@ log_speed_test() {
                 local end_time=$(date +%s.%N)
                 local duration=$(echo "$end_time - $start_time" | bc -l 2>/dev/null || echo "1")
                 local file_size=$(stat -c%s "$temp_file" 2>/dev/null || echo "10485760")
-                local download_speed=$(echo "scale=2; ($file_size * 8) / ($duration * 1024 * 1024)" | bc -l 2>/dev/null || echo "0")
-                local upload_speed=0  # Linux test doesn't measure upload
-                local latency=0       # Linux test doesn't measure latency
+                download_speed=$(echo "scale=2; ($file_size * 8) / ($duration * 1024 * 1024)" | bc -l 2>/dev/null || echo "0")
+                upload_speed=0  # Linux test doesn't measure upload
+                latency=0       # Linux test doesn't measure latency
+                responsiveness=0
                 
                 # Check performance (only download for Linux)
-                check_performance "$download_speed" "$upload_speed" "$latency"
-                local performance_status=$?
+                if check_performance "$download_speed" "$upload_speed" "$latency"; then
+                    status="DEGRADED"
+                else
+                    status="OK"
+                fi
                 
-                result="Download: ${download_speed} Mbps Upload: N/A Latency: N/A"
                 rm -f "$temp_file"
             else
-                result="ERROR: Speed test failed"
+                status="FAILED"
             fi
             ;;
         "windows")
@@ -288,30 +298,42 @@ log_speed_test() {
                     Write-Output 'ERROR'
                 }
             "
-            local download_speed=$(powershell -Command "$powershell_script" 2>/dev/null)
-            local upload_speed=0  # Windows test doesn't measure upload
-            local latency=0       # Windows test doesn't measure latency
+            download_speed=$(powershell -Command "$powershell_script" 2>/dev/null)
+            upload_speed=0  # Windows test doesn't measure upload
+            latency=0       # Windows test doesn't measure latency
+            responsiveness=0
             
             if [[ "$download_speed" != "ERROR" ]]; then
                 # Check performance (only download for Windows)
-                check_performance "$download_speed" "$upload_speed" "$latency"
-                local performance_status=$?
-                
-                result="Download: ${download_speed} Mbps Upload: N/A Latency: N/A"
+                if check_performance "$download_speed" "$upload_speed" "$latency"; then
+                    status="DEGRADED"
+                else
+                    status="OK"
+                fi
             else
-                result="ERROR: Speed test failed"
+                status="FAILED"
             fi
             ;;
         *)
-            result="ERROR: Unsupported platform"
+            status="FAILED"
             ;;
     esac
     
-    if [[ "$result" != *"ERROR"* ]]; then
-        echo "$timestamp - $result" >> "$LOG_FILE"
+    # Create CSV log file if it doesn't exist
+    local csv_file="${HOME}/internet_logs/speed_log_$(date +%Y-%m).csv"
+    mkdir -p "${HOME}/internet_logs"
+    
+    # Add header if file doesn't exist
+    if [ ! -f "$csv_file" ]; then
+        echo "timestamp,download_mbps,upload_mbps,latency_ms,responsiveness_rpm,status" > "$csv_file"
+    fi
+    
+    # Append the test result
+    echo "$timestamp,$download_speed,$upload_speed,$latency,$responsiveness,$status" >> "$csv_file"
+    
+    if [[ "$status" != "FAILED" ]]; then
         print_status $GREEN "Speed test logged at $timestamp"
     else
-        echo "$timestamp - $result" >> "$LOG_FILE"
         print_status $RED "Speed test failed at $timestamp"
     fi
 }
@@ -470,6 +492,9 @@ main() {
     
     if [ "$RUN_TEST" = true ]; then
         run_speed_test
+        echo ""
+        print_status $BLUE "Logging test results..."
+        log_speed_test
     elif [ "$START_MONITORING" = true ]; then
         start_monitoring
     elif [ "$STOP_MONITORING" = true ]; then
