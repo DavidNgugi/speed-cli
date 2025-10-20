@@ -16,7 +16,7 @@
 [![Windows](https://img.shields.io/badge/Windows-supported-green.svg)](https://www.microsoft.com/windows/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-![Dashboard Preview](https://via.placeholder.com/800x400?text=Dashboard+Screenshot+Here)
+![Dashboard Preview](screenshots/dashboard.png)
 
 ## Quick Install
 
