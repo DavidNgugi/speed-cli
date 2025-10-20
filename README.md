@@ -10,7 +10,7 @@
 
 ## Quick Install
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DavidNgugi/speed-cli/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/DavidNgugi/speed-cli/main/install.sh | bash
 ```
 
 That's it! The monitor is now running in the background.
