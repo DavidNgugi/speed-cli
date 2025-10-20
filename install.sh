@@ -15,6 +15,80 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}Installing Speed CLI v${VERSION}...${NC}"
 
+# Configuration prompts
+echo -e "${YELLOW}Let's configure your speed monitoring settings:${NC}"
+echo ""
+
+# Ask for expected speed from provider
+while true; do
+    read -p "What's your expected download speed from your ISP? (Mbps): " EXPECTED_DOWNLOAD
+    if [[ "$EXPECTED_DOWNLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]] && (( $(echo "$EXPECTED_DOWNLOAD > 0" | bc -l) )); then
+        break
+    else
+        echo -e "${RED}Please enter a valid positive number${NC}"
+    fi
+done
+
+while true; do
+    read -p "What's your expected upload speed from your ISP? (Mbps): " EXPECTED_UPLOAD
+    if [[ "$EXPECTED_UPLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]] && (( $(echo "$EXPECTED_UPLOAD > 0" | bc -l) )); then
+        break
+    else
+        echo -e "${RED}Please enter a valid positive number${NC}"
+    fi
+done
+
+# Ask for monitoring frequency
+echo ""
+echo -e "${YELLOW}How often would you like to run speed tests?${NC}"
+echo "1) Every 15 minutes (frequent monitoring)"
+echo "2) Every 30 minutes (moderate monitoring)"
+echo "3) Every hour (standard monitoring)"
+echo "4) Every 2 hours (light monitoring)"
+echo "5) Custom interval (in minutes)"
+
+while true; do
+    read -p "Choose option (1-5): " FREQ_CHOICE
+    case $FREQ_CHOICE in
+        1) MONITOR_INTERVAL=900; break ;;  # 15 minutes
+        2) MONITOR_INTERVAL=1800; break ;; # 30 minutes
+        3) MONITOR_INTERVAL=3600; break ;; # 1 hour
+        4) MONITOR_INTERVAL=7200; break ;; # 2 hours
+        5) 
+            while true; do
+                read -p "Enter interval in minutes (minimum 5): " CUSTOM_MINUTES
+                if [[ "$CUSTOM_MINUTES" =~ ^[0-9]+$ ]] && [ "$CUSTOM_MINUTES" -ge 5 ]; then
+                    MONITOR_INTERVAL=$((CUSTOM_MINUTES * 60))
+                    break
+                else
+                    echo -e "${RED}Please enter a valid number (minimum 5 minutes)${NC}"
+                fi
+            done
+            break
+            ;;
+        *)
+            echo -e "${RED}Please choose 1-5${NC}"
+            ;;
+    esac
+done
+
+# Create configuration file
+CONFIG_DIR="$HOME/.speed-cli"
+mkdir -p "$CONFIG_DIR"
+
+cat > "$CONFIG_DIR/config" << EOF
+# Speed CLI Configuration
+EXPECTED_DOWNLOAD=$EXPECTED_DOWNLOAD
+EXPECTED_UPLOAD=$EXPECTED_UPLOAD
+MONITOR_INTERVAL=$MONITOR_INTERVAL
+EOF
+
+echo ""
+echo -e "${GREEN}Configuration saved!${NC}"
+echo -e "${BLUE}Expected speeds: ${EXPECTED_DOWNLOAD} Mbps down, ${EXPECTED_UPLOAD} Mbps up${NC}"
+echo -e "${BLUE}Monitoring interval: $((MONITOR_INTERVAL / 60)) minutes${NC}"
+echo ""
+
 # Detect platform
 detect_platform() {
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -96,7 +170,7 @@ case "$PLATFORM" in
         <string>$HOME/scripts/internet_monitor.sh</string>
     </array>
     <key>StartInterval</key>
-    <integer>3600</integer>
+    <integer>$MONITOR_INTERVAL</integer>
     <key>RunAtLoad</key>
     <true/>
     <key>StandardOutPath</key>
@@ -129,7 +203,7 @@ Type=simple
 User=$USER
 ExecStart=/bin/bash $INSTALL_DIR/internet_monitor.sh
 Restart=always
-RestartSec=3600
+RestartSec=$MONITOR_INTERVAL
 
 [Install]
 WantedBy=multi-user.target

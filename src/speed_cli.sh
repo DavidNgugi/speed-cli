@@ -169,6 +169,103 @@ case "$1" in
         echo -e "${BLUE}Speed CLI v${VERSION}${NC}"
         ;;
     
+    configure)
+        CONFIG_FILE="$HOME/.speed-cli/config"
+        if [ ! -f "$CONFIG_FILE" ]; then
+            echo -e "${RED}Configuration file not found. Please run the installer first.${NC}"
+            exit 1
+        fi
+        
+        # Load current configuration
+        source "$CONFIG_FILE"
+        
+        echo -e "${BLUE}Current Configuration:${NC}"
+        echo "Expected Download: ${EXPECTED_DOWNLOAD} Mbps"
+        echo "Expected Upload: ${EXPECTED_UPLOAD} Mbps"
+        echo "Monitoring Interval: $((MONITOR_INTERVAL / 60)) minutes"
+        echo ""
+        
+        echo -e "${YELLOW}Would you like to update these settings? (y/N)${NC}"
+        read -p "> " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo ""
+            echo -e "${YELLOW}Enter new values (press Enter to keep current):${NC}"
+            
+            # Update expected download speed
+            read -p "Expected download speed (current: ${EXPECTED_DOWNLOAD} Mbps): " NEW_DOWNLOAD
+            if [ -n "$NEW_DOWNLOAD" ]; then
+                if [[ "$NEW_DOWNLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]] && (( $(echo "$NEW_DOWNLOAD > 0" | bc -l) )); then
+                    EXPECTED_DOWNLOAD="$NEW_DOWNLOAD"
+                else
+                    echo -e "${RED}Invalid input, keeping current value${NC}"
+                fi
+            fi
+            
+            # Update expected upload speed
+            read -p "Expected upload speed (current: ${EXPECTED_UPLOAD} Mbps): " NEW_UPLOAD
+            if [ -n "$NEW_UPLOAD" ]; then
+                if [[ "$NEW_UPLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]] && (( $(echo "$NEW_UPLOAD > 0" | bc -l) )); then
+                    EXPECTED_UPLOAD="$NEW_UPLOAD"
+                else
+                    echo -e "${RED}Invalid input, keeping current value${NC}"
+                fi
+            fi
+            
+            # Update monitoring interval
+            echo ""
+            echo "Monitoring frequency options:"
+            echo "1) Every 15 minutes (frequent monitoring)"
+            echo "2) Every 30 minutes (moderate monitoring)"
+            echo "3) Every hour (standard monitoring)"
+            echo "4) Every 2 hours (light monitoring)"
+            echo "5) Custom interval"
+            echo "6) Keep current ($((MONITOR_INTERVAL / 60)) minutes)"
+            
+            read -p "Choose option (1-6): " FREQ_CHOICE
+            case $FREQ_CHOICE in
+                1) MONITOR_INTERVAL=900 ;;  # 15 minutes
+                2) MONITOR_INTERVAL=1800 ;; # 30 minutes
+                3) MONITOR_INTERVAL=3600 ;; # 1 hour
+                4) MONITOR_INTERVAL=7200 ;; # 2 hours
+                5) 
+                    while true; do
+                        read -p "Enter interval in minutes (minimum 5): " CUSTOM_MINUTES
+                        if [[ "$CUSTOM_MINUTES" =~ ^[0-9]+$ ]] && [ "$CUSTOM_MINUTES" -ge 5 ]; then
+                            MONITOR_INTERVAL=$((CUSTOM_MINUTES * 60))
+                            break
+                        else
+                            echo -e "${RED}Please enter a valid number (minimum 5 minutes)${NC}"
+                        fi
+                    done
+                    ;;
+                6) ;; # Keep current
+                *)
+                    echo -e "${RED}Invalid choice, keeping current interval${NC}"
+                    ;;
+            esac
+            
+            # Save updated configuration
+            cat > "$CONFIG_FILE" << EOF
+# Speed CLI Configuration
+EXPECTED_DOWNLOAD=$EXPECTED_DOWNLOAD
+EXPECTED_UPLOAD=$EXPECTED_UPLOAD
+MONITOR_INTERVAL=$MONITOR_INTERVAL
+EOF
+            
+            echo ""
+            echo -e "${GREEN}Configuration updated!${NC}"
+            echo -e "${BLUE}New settings:${NC}"
+            echo "Expected speeds: ${EXPECTED_DOWNLOAD} Mbps down, ${EXPECTED_UPLOAD} Mbps up"
+            echo "Monitoring interval: $((MONITOR_INTERVAL / 60)) minutes"
+            echo ""
+            echo -e "${YELLOW}Note: You may need to restart the monitoring service for changes to take effect.${NC}"
+            echo "Run: speed stop && speed start"
+        else
+            echo "Configuration unchanged"
+        fi
+        ;;
+    
     update)
         echo -e "${BLUE}Updating Internet Speed Monitor...${NC}"
         REPO_URL="https://raw.githubusercontent.com/DavidNgugi/speed-cli/main"
@@ -200,6 +297,7 @@ case "$1" in
         echo "  start       Start background monitoring"
         echo "  stop        Stop background monitoring"
         echo "  version     Show current version"
+        echo "  configure   Configure expected speeds and monitoring frequency"
         echo "  update      Update to latest version"
         echo "  uninstall   Remove Internet Speed Monitor"
         echo "  help        Show this help message"

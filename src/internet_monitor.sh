@@ -7,8 +7,10 @@ set -e
 # Configuration
 LOG_FILE="${HOME}/.speed-cli/monitor.log"
 CONFIG_FILE="${HOME}/.speed-cli/config"
-INTERVAL=300  # 5 minutes default
+INTERVAL=3600  # 1 hour default
 MAX_LOG_ENTRIES=1000
+EXPECTED_DOWNLOAD=100  # Default expected speeds
+EXPECTED_UPLOAD=10
 
 # Colors for output
 RED='\033[0;31m'
@@ -28,6 +30,7 @@ print_status() {
 setup_directories() {
     mkdir -p "$(dirname "$LOG_FILE")"
     mkdir -p "$(dirname "$CONFIG_FILE")"
+    mkdir -p "${HOME}/internet_logs"
 }
 
 # Function to load configuration
@@ -40,7 +43,10 @@ load_config() {
 # Function to save configuration
 save_config() {
     cat > "$CONFIG_FILE" << EOF
-INTERVAL=$INTERVAL
+# Speed CLI Configuration
+EXPECTED_DOWNLOAD=$EXPECTED_DOWNLOAD
+EXPECTED_UPLOAD=$EXPECTED_UPLOAD
+MONITOR_INTERVAL=$INTERVAL
 MAX_LOG_ENTRIES=$MAX_LOG_ENTRIES
 EOF
 }
@@ -179,6 +185,44 @@ run_speed_test() {
     fi
 }
 
+# Function to check if speeds are degraded
+check_performance() {
+    local download=$1
+    local upload=$2
+    local latency=$3
+    
+    local degraded=false
+    local alert_message=""
+    
+    # Check if download is significantly below expected (less than 80% of expected)
+    local download_threshold=$(echo "$EXPECTED_DOWNLOAD * 0.8" | bc -l)
+    if (( $(echo "$download < $download_threshold" | bc -l) )); then
+        degraded=true
+        alert_message="${alert_message}Download speed ${download} Mbps is below expected ${EXPECTED_DOWNLOAD} Mbps. "
+    fi
+    
+    # Check if upload is significantly below expected (less than 80% of expected)
+    local upload_threshold=$(echo "$EXPECTED_UPLOAD * 0.8" | bc -l)
+    if (( $(echo "$upload < $upload_threshold" | bc -l) )); then
+        degraded=true
+        alert_message="${alert_message}Upload speed ${upload} Mbps is below expected ${EXPECTED_UPLOAD} Mbps. "
+    fi
+    
+    # Check if latency is high (more than 100ms)
+    if (( $(echo "$latency > 100" | bc -l) )); then
+        degraded=true
+        alert_message="${alert_message}High latency: ${latency}ms. "
+    fi
+    
+    if [ "$degraded" = true ]; then
+        local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+        echo "$timestamp - PERFORMANCE ALERT: $alert_message" >> "${HOME}/internet_logs/alerts.log"
+        print_status $YELLOW "Performance alert: $alert_message"
+    fi
+    
+    return $([ "$degraded" = true ] && echo 1 || echo 0)
+}
+
 # Function to log speed test result
 log_speed_test() {
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
@@ -187,7 +231,21 @@ log_speed_test() {
     
     case "$platform" in
         "macos")
-            result=$(networkquality 2>/dev/null | grep -E "(Uplink|Downlink|Idle Latency|Responsiveness)" | tr '\n' ' ')
+            local network_output=$(networkquality 2>/dev/null)
+            local download_speed=$(echo "$network_output" | grep "Downlink capacity:" | awk '{print $3}' | sed 's/Mbps//')
+            local upload_speed=$(echo "$network_output" | grep "Uplink capacity:" | awk '{print $3}' | sed 's/Mbps//')
+            local latency=$(echo "$network_output" | grep "Idle Latency:" | awk '{print $3}' | sed 's/ms//')
+            
+            # Set defaults if values are empty
+            download_speed=${download_speed:-0}
+            upload_speed=${upload_speed:-0}
+            latency=${latency:-0}
+            
+            # Check performance and log results
+            check_performance "$download_speed" "$upload_speed" "$latency"
+            local performance_status=$?
+            
+            result="Download: ${download_speed} Mbps Upload: ${upload_speed} Mbps Latency: ${latency}ms"
             ;;
         "linux")
             # Use wget for logging on Linux
@@ -198,8 +256,15 @@ log_speed_test() {
                 local end_time=$(date +%s.%N)
                 local duration=$(echo "$end_time - $start_time" | bc -l 2>/dev/null || echo "1")
                 local file_size=$(stat -c%s "$temp_file" 2>/dev/null || echo "10485760")
-                local speed_mbps=$(echo "scale=2; ($file_size * 8) / ($duration * 1024 * 1024)" | bc -l 2>/dev/null || echo "0")
-                result="Download: ${speed_mbps} Mbps Upload: N/A Latency: N/A"
+                local download_speed=$(echo "scale=2; ($file_size * 8) / ($duration * 1024 * 1024)" | bc -l 2>/dev/null || echo "0")
+                local upload_speed=0  # Linux test doesn't measure upload
+                local latency=0       # Linux test doesn't measure latency
+                
+                # Check performance (only download for Linux)
+                check_performance "$download_speed" "$upload_speed" "$latency"
+                local performance_status=$?
+                
+                result="Download: ${download_speed} Mbps Upload: N/A Latency: N/A"
                 rm -f "$temp_file"
             else
                 result="ERROR: Speed test failed"
@@ -217,13 +282,25 @@ log_speed_test() {
                     \$duration = (\$endTime - \$startTime).TotalSeconds
                     \$fileSize = (Get-Item '$temp_file').Length
                     \$speedMbps = [math]::Round((\$fileSize * 8) / (\$duration * 1024 * 1024), 2)
-                    Write-Output \"Download: \$speedMbps Mbps Upload: N/A Latency: N/A\"
+                    Write-Output \"\$speedMbps\"
                     Remove-Item '$temp_file' -ErrorAction SilentlyContinue
                 } catch {
-                    Write-Output 'ERROR: Speed test failed'
+                    Write-Output 'ERROR'
                 }
             "
-            result=$(powershell -Command "$powershell_script" 2>/dev/null)
+            local download_speed=$(powershell -Command "$powershell_script" 2>/dev/null)
+            local upload_speed=0  # Windows test doesn't measure upload
+            local latency=0       # Windows test doesn't measure latency
+            
+            if [[ "$download_speed" != "ERROR" ]]; then
+                # Check performance (only download for Windows)
+                check_performance "$download_speed" "$upload_speed" "$latency"
+                local performance_status=$?
+                
+                result="Download: ${download_speed} Mbps Upload: N/A Latency: N/A"
+            else
+                result="ERROR: Speed test failed"
+            fi
             ;;
         *)
             result="ERROR: Unsupported platform"

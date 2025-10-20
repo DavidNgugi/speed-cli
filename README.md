@@ -80,6 +80,26 @@ Then visit **http://localhost:6432** in your browser!
 4. Alerts you when speeds drop below your plan's thresholds
 5. Helps you build evidence for ISP support tickets
 
+## Configuration
+
+During installation, you'll be asked to configure:
+
+- **Expected speeds** from your ISP (download/upload)
+- **Monitoring frequency** (15 minutes to 2 hours)
+
+You can change these settings anytime:
+
+```bash
+speed configure
+```
+
+This will show your current settings and allow you to update:
+- Expected download/upload speeds
+- Monitoring interval (how often tests run)
+- Performance thresholds for alerts
+
+The system will automatically alert you when speeds drop below 80% of your expected speeds.
+
 ## Requirements
 
 ### macOS
@@ -212,6 +232,7 @@ speed alerts      # View performance alerts
 speed status      # Check if monitoring is running
 speed start       # Start background monitoring
 speed stop        # Stop background monitoring
+speed configure   # Configure expected speeds and monitoring frequency
 speed uninstall   # Remove everything (keeps logs)
 ```
 
