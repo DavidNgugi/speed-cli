@@ -163,7 +163,7 @@ if [ -n "$SHELL_RC" ] && ! grep -q "internet-speed-monitor" "$SHELL_RC"; then
 fi
 
 echo ""
-echo -e "${GREEN}Installation complete!${NC}"
+echo -e "${GREEN}Installation complete! Restart your terminal to start monitoring.${NC}"
 echo ""
 echo -e "${BLUE}Start using it:${NC}"
 echo "   speed dashboard    # Open web interface"
