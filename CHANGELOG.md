@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] - 2025-10-20
+
+### Fixed
+- Dashboard `/api/trigger` now runs an actual one-off speed test using the existing `internet_monitor.sh --test` and returns the latest logged result as JSON instead of only nudging the background service. This makes the “Run Test Now” button immediately useful.
+
 ## [1.0.3] - 2025-10-20
 
 ### Fixed
