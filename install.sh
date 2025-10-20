@@ -15,90 +15,100 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}Installing Speed CLI v${VERSION}...${NC}"
 
-# Configuration prompts
-echo -e "${YELLOW}Let's configure your speed monitoring settings:${NC}"
-echo ""
+# Check if running in non-interactive mode
+if [[ ! -t 0 ]] || [[ -n "$CI" ]] || [[ -n "$NONINTERACTIVE" ]] || [[ -z "$PS1" ]] || [[ "$TERM" == "dumb" ]]; then
+    echo -e "${YELLOW}Running in non-interactive mode. Using default settings.${NC}"
+    EXPECTED_DOWNLOAD=100
+    EXPECTED_UPLOAD=20
+    MONITOR_INTERVAL=1800  # 30 minutes
+    echo -e "${BLUE}Using defaults: ${EXPECTED_DOWNLOAD} Mbps down, ${EXPECTED_UPLOAD} Mbps up, every 30 minutes${NC}"
+else
+    # Configuration prompts
+    echo -e "${YELLOW}Let's configure your speed monitoring settings:${NC}"
+    echo ""
 
-# Ask for expected speed from provider with validation
-echo -e "${BLUE}Download Speed:${NC}"
-while true; do
-    read -p "What's your expected download speed from your ISP? (Mbps) [default: 100]: " EXPECTED_DOWNLOAD
-    EXPECTED_DOWNLOAD=${EXPECTED_DOWNLOAD:-100}
-    
-    # Check if it's a valid positive number
-    if [[ "$EXPECTED_DOWNLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
-        # Use bc if available, otherwise use awk for comparison
-        if command -v bc &> /dev/null; then
-            if (( $(echo "$EXPECTED_DOWNLOAD > 0" | bc -l) )); then
-                break
-            fi
-        else
-            # Fallback: check if it's greater than 0 using awk
-            if (( $(echo "$EXPECTED_DOWNLOAD" | awk '{print ($1 > 0)}') )); then
-                break
-            fi
-        fi
-    else
-        echo -e "${RED}Please enter a valid positive number${NC}"
-    fi
-done
-
-echo -e "${BLUE}Upload Speed:${NC}"
-while true; do
-    read -p "What's your expected upload speed from your ISP? (Mbps) [default: 20]: " EXPECTED_UPLOAD
-    EXPECTED_UPLOAD=${EXPECTED_UPLOAD:-20}
-    
-    # Check if it's a valid positive number
-    if [[ "$EXPECTED_UPLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
-        # Use bc if available, otherwise use awk for comparison
-        if command -v bc &> /dev/null; then
-            if (( $(echo "$EXPECTED_UPLOAD > 0" | bc -l) )); then
-                break
-            fi
-        else
-            # Fallback: check if it's greater than 0 using awk
-            if (( $(echo "$EXPECTED_UPLOAD" | awk '{print ($1 > 0)}') )); then
-                break
-            fi
-        fi
-    else
-        echo -e "${RED}Please enter a valid positive number${NC}"
-    fi
-done
-
-# Ask for monitoring frequency
-echo ""
-echo -e "${YELLOW}How often would you like to run speed tests?${NC}"
-echo "1) Every 15 minutes (frequent monitoring)"
-echo "2) Every 30 minutes (moderate monitoring)"
-echo "3) Every hour (standard monitoring)"
-echo "4) Every 2 hours (light monitoring)"
-echo "5) Custom interval (in minutes)"
-
-while true; do
-    read -p "Choose option (1-5): " FREQ_CHOICE
-    case $FREQ_CHOICE in
-        1) MONITOR_INTERVAL=900; break ;;  # 15 minutes
-        2) MONITOR_INTERVAL=1800; break ;; # 30 minutes
-        3) MONITOR_INTERVAL=3600; break ;; # 1 hour
-        4) MONITOR_INTERVAL=7200; break ;; # 2 hours
-        5) 
-            while true; do
-                read -p "Enter interval in minutes (minimum 5): " CUSTOM_MINUTES
-                if [[ "$CUSTOM_MINUTES" =~ ^[0-9]+$ ]] && [ "$CUSTOM_MINUTES" -ge 5 ]; then
-                    MONITOR_INTERVAL=$((CUSTOM_MINUTES * 60))
+    # Ask for expected speed from provider with validation
+    echo -e "${BLUE}Download Speed:${NC}"
+    while true; do
+        read -p "What's your expected download speed from your ISP? (Mbps) [default: 100]: " EXPECTED_DOWNLOAD
+        EXPECTED_DOWNLOAD=${EXPECTED_DOWNLOAD:-100}
+        
+        # Check if it's a valid positive number
+        if [[ "$EXPECTED_DOWNLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+            # Use bc if available, otherwise use awk for comparison
+            if command -v bc &> /dev/null; then
+                if (( $(echo "$EXPECTED_DOWNLOAD > 0" | bc -l) )); then
                     break
-                else
-                    echo -e "${RED}Please enter a valid number (minimum 5 minutes)${NC}"
                 fi
-            done
-            break
-            ;;
-        *)
-            echo -e "${RED}Please choose 1-5${NC}"
-            ;;
-    esac
-done
+            else
+                # Fallback: check if it's greater than 0 using awk
+                if (( $(echo "$EXPECTED_DOWNLOAD" | awk '{print ($1 > 0)}') )); then
+                    break
+                fi
+            fi
+        else
+            echo -e "${RED}Please enter a valid positive number${NC}"
+        fi
+    done
+
+    echo -e "${BLUE}Upload Speed:${NC}"
+    while true; do
+        read -p "What's your expected upload speed from your ISP? (Mbps) [default: 20]: " EXPECTED_UPLOAD
+        EXPECTED_UPLOAD=${EXPECTED_UPLOAD:-20}
+        
+        # Check if it's a valid positive number
+        if [[ "$EXPECTED_UPLOAD" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+            # Use bc if available, otherwise use awk for comparison
+            if command -v bc &> /dev/null; then
+                if (( $(echo "$EXPECTED_UPLOAD > 0" | bc -l) )); then
+                    break
+                fi
+            else
+                # Fallback: check if it's greater than 0 using awk
+                if (( $(echo "$EXPECTED_UPLOAD" | awk '{print ($1 > 0)}') )); then
+                    break
+                fi
+            fi
+        else
+            echo -e "${RED}Please enter a valid positive number${NC}"
+        fi
+    done
+
+    # Ask for monitoring frequency
+    echo ""
+    echo -e "${YELLOW}How often would you like to run speed tests?${NC}"
+    echo "1) Every 15 minutes (frequent monitoring)"
+    echo "2) Every 30 minutes (moderate monitoring)"
+    echo "3) Every hour (standard monitoring)"
+    echo "4) Every 2 hours (light monitoring)"
+    echo "5) Custom interval (in minutes)"
+
+    while true; do
+        read -p "Choose option (1-5): " FREQ_CHOICE
+        case $FREQ_CHOICE in
+            1) MONITOR_INTERVAL=900; break ;;  # 15 minutes
+            2) MONITOR_INTERVAL=1800; break ;; # 30 minutes
+            3) MONITOR_INTERVAL=3600; break ;; # 1 hour
+            4) MONITOR_INTERVAL=7200; break ;; # 2 hours
+            5) 
+                while true; do
+                    read -p "Enter interval in minutes (minimum 5): " CUSTOM_MINUTES
+                    if [[ "$CUSTOM_MINUTES" =~ ^[0-9]+$ ]] && [ "$CUSTOM_MINUTES" -ge 5 ]; then
+                        MONITOR_INTERVAL=$((CUSTOM_MINUTES * 60))
+                        break
+                    else
+                        echo -e "${RED}Please enter a valid number (minimum 5 minutes)${NC}"
+                    fi
+                done
+                break
+                ;;
+            *)
+                echo -e "${RED}Please choose 1-5${NC}"
+                ;;
+        esac
+    done
+
+fi  # End of interactive mode check
 
 # Create configuration file
 CONFIG_DIR="$HOME/.speed-cli"
