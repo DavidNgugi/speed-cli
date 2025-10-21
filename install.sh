@@ -152,25 +152,127 @@ case "$PLATFORM" in
         fi
         ;;
     "linux")
+        echo -e "${BLUE}Checking Linux dependencies...${NC}"
+        
+        # Check and install basic dependencies
+        MISSING_DEPS=()
+        
         if ! command -v wget &> /dev/null; then
-            echo -e "${YELLOW}Warning: wget not found. Installing wget...${NC}"
+            MISSING_DEPS+=("wget")
+        fi
+        
+        if ! command -v bc &> /dev/null; then
+            MISSING_DEPS+=("bc")
+        fi
+        
+        if ! command -v python3 &> /dev/null; then
+            MISSING_DEPS+=("python3")
+        fi
+        
+        # Install missing basic dependencies
+        if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
+            echo -e "${YELLOW}Installing missing dependencies: ${MISSING_DEPS[*]}${NC}"
             if command -v apt-get &> /dev/null; then
-                sudo apt-get update && sudo apt-get install -y wget bc
+                sudo apt-get update && sudo apt-get install -y "${MISSING_DEPS[@]}"
             elif command -v yum &> /dev/null; then
-                sudo yum install -y wget bc
+                sudo yum install -y "${MISSING_DEPS[@]}"
             elif command -v dnf &> /dev/null; then
-                sudo dnf install -y wget bc
+                sudo dnf install -y "${MISSING_DEPS[@]}"
+            elif command -v pacman &> /dev/null; then
+                sudo pacman -S --noconfirm "${MISSING_DEPS[@]}"
             else
-                echo -e "${RED}Error: Please install wget and bc manually${NC}"
+                echo -e "${RED}Error: Please install ${MISSING_DEPS[*]} manually${NC}"
                 exit 1
             fi
         fi
+        
+        # Check for optional but recommended dependencies
+        echo -e "${BLUE}Checking for optional dependencies...${NC}"
+        
+        if ! command -v speedtest &> /dev/null; then
+            echo -e "${YELLOW}speedtest-cli not found. Installing for better speed testing...${NC}"
+            if command -v apt-get &> /dev/null; then
+                sudo apt-get install -y speedtest-cli
+            elif command -v pip3 &> /dev/null; then
+                pip3 install speedtest-cli
+            else
+                echo -e "${YELLOW}Note: Install speedtest-cli manually for better speed testing:${NC}"
+                echo "  Debian/Ubuntu: sudo apt install speedtest-cli"
+                echo "  Or via pip: pip install speedtest-cli"
+            fi
+        else
+            echo -e "${GREEN}✓ speedtest-cli found${NC}"
+        fi
+        
+        if ! command -v jq &> /dev/null; then
+            echo -e "${YELLOW}jq not found. Installing for better JSON parsing...${NC}"
+            if command -v apt-get &> /dev/null; then
+                sudo apt-get install -y jq
+            elif command -v yum &> /dev/null; then
+                sudo yum install -y jq
+            elif command -v dnf &> /dev/null; then
+                sudo dnf install -y jq
+            elif command -v pacman &> /dev/null; then
+                sudo pacman -S --noconfirm jq
+            else
+                echo -e "${YELLOW}Note: Install jq manually for better JSON parsing:${NC}"
+                echo "  Debian/Ubuntu: sudo apt install jq"
+                echo "  RHEL/CentOS: sudo yum install jq"
+                echo "  Arch: sudo pacman -S jq"
+            fi
+        else
+            echo -e "${GREEN}✓ jq found${NC}"
+        fi
+        
+        echo -e "${GREEN}Linux dependencies check complete!${NC}"
         ;;
     "windows")
+        echo -e "${BLUE}Checking Windows dependencies...${NC}"
+        
         if ! command -v powershell &> /dev/null; then
             echo -e "${RED}Error: PowerShell not found. Please install PowerShell.${NC}"
             exit 1
         fi
+        
+        # Check for Python 3
+        if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
+            echo -e "${YELLOW}Python 3 not found. Please install Python 3:${NC}"
+            echo "  Download from: https://www.python.org/downloads/"
+            echo "  Make sure to check 'Add Python to PATH' during installation"
+            echo ""
+        else
+            echo -e "${GREEN}✓ Python found${NC}"
+        fi
+        
+        # Check for Git (needed for bash environment)
+        if ! command -v git &> /dev/null; then
+            echo -e "${YELLOW}Git not found. Please install Git for Windows:${NC}"
+            echo "  Download from: https://git-scm.com/download/win"
+            echo "  This provides the bash environment needed for the tool"
+            echo ""
+        else
+            echo -e "${GREEN}✓ Git found${NC}"
+        fi
+        
+        # Check for optional speedtest-cli
+        echo -e "${BLUE}Checking for optional dependencies...${NC}"
+        
+        if ! command -v speedtest &> /dev/null; then
+            echo -e "${YELLOW}speedtest-cli not found. Installing for better speed testing...${NC}"
+            if command -v pip3 &> /dev/null; then
+                pip3 install speedtest-cli
+            elif command -v pip &> /dev/null; then
+                pip install speedtest-cli
+            else
+                echo -e "${YELLOW}Note: Install speedtest-cli manually for better speed testing:${NC}"
+                echo "  pip install speedtest-cli"
+                echo "  Or download from: https://www.speedtest.net/apps/cli"
+            fi
+        else
+            echo -e "${GREEN}✓ speedtest-cli found${NC}"
+        fi
+        
+        echo -e "${GREEN}Windows dependencies check complete!${NC}"
         ;;
     *)
         echo -e "${RED}Error: Unsupported platform: $OSTYPE${NC}"
@@ -289,9 +391,60 @@ EOF
         fi
         ;;
     "windows")
-        # Create Windows Task Scheduler entry
-        echo -e "${YELLOW}Note: Windows background service setup requires manual configuration.${NC}"
-        echo "Please set up a scheduled task to run: $INSTALL_DIR/internet_monitor.sh"
+        echo -e "${BLUE}Setting up Windows background monitoring...${NC}"
+        
+        # Create PowerShell script for Windows Task Scheduler
+        cat > "$INSTALL_DIR/setup_windows_service.ps1" << 'EOF'
+# PowerShell script to set up Windows Task Scheduler for Speed CLI
+param(
+    [string]$InstallDir = "$env:USERPROFILE\scripts",
+    [int]$IntervalMinutes = 30
+)
+
+Write-Host "Setting up Windows Task Scheduler for Speed CLI..." -ForegroundColor Blue
+
+# Create the scheduled task
+$action = New-ScheduledTaskAction -Execute "C:\Program Files\Git\bin\bash.exe" -Argument "-c '$InstallDir/internet_monitor.sh"
+$trigger = New-ScheduledTaskTrigger -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes) -RepetitionDuration (New-TimeSpan -Days 365)
+$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType InteractiveToken
+
+try {
+    Register-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal -TaskName "Speed Monitor" -Description "Internet Speed Monitoring" -Force
+    Write-Host "✓ Speed Monitor scheduled task created successfully!" -ForegroundColor Green
+    Write-Host "Task will run every $IntervalMinutes minutes" -ForegroundColor Blue
+} catch {
+    Write-Host "Error creating scheduled task: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "You may need to run PowerShell as Administrator" -ForegroundColor Yellow
+}
+EOF
+        
+        # Try to set up the scheduled task automatically
+        echo -e "${BLUE}Attempting to set up Windows Task Scheduler...${NC}"
+        if command -v powershell &> /dev/null; then
+            powershell -ExecutionPolicy Bypass -File "$INSTALL_DIR/setup_windows_service.ps1" -InstallDir "$INSTALL_DIR" -IntervalMinutes $((MONITOR_INTERVAL / 60))
+            if [ $? -eq 0 ]; then
+                echo -e "${GREEN}✓ Windows background monitoring set up successfully!${NC}"
+            else
+                echo -e "${YELLOW}Automatic setup failed. Manual setup required.${NC}"
+                echo ""
+                echo -e "${BLUE}Manual Setup Instructions:${NC}"
+                echo "1. Open Task Scheduler (search in Start menu)"
+                echo "2. Click 'Create Basic Task'"
+                echo "3. Name: 'Speed Monitor'"
+                echo "4. Trigger: 'Daily' → 'Recur every: 1 days'"
+                echo "5. Action: 'Start a program'"
+                echo "6. Program: C:\\Program Files\\Git\\bin\\bash.exe"
+                echo "7. Arguments: -c '$INSTALL_DIR/internet_monitor.sh'"
+                echo "8. Check 'Run whether user is logged on or not'"
+                echo ""
+                echo -e "${BLUE}Or run this PowerShell command as Administrator:${NC}"
+                echo "powershell -ExecutionPolicy Bypass -File '$INSTALL_DIR/setup_windows_service.ps1'"
+            fi
+        else
+            echo -e "${YELLOW}PowerShell not available for automatic setup.${NC}"
+            echo "Please set up a scheduled task manually to run: $INSTALL_DIR/internet_monitor.sh"
+        fi
         ;;
 esac
 

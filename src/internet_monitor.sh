@@ -91,8 +91,61 @@ run_speed_test_macos() {
 
 # Function to run speed test on Linux
 run_speed_test_linux() {
-    # Use wget to download a test file and measure speed
-    local test_url="http://speedtest.wdc01.softlayer.com/downloads/test10.zip"
+    # Try speedtest-cli first (preferred method)
+    if command -v speedtest >/dev/null 2>&1; then
+        echo -e "${BLUE}Running speed test with speedtest-cli...${NC}"
+        local json_output=$(speedtest --accept-license --accept-gdpr -f json 2>/dev/null)
+        
+        if [ -n "$json_output" ]; then
+            if command -v jq >/dev/null 2>&1; then
+                # Use jq for JSON parsing
+                local dl_bw=$(echo "$json_output" | jq -r '.download.bandwidth // 0')
+                local ul_bw=$(echo "$json_output" | jq -r '.upload.bandwidth // 0')
+                local ping_ms=$(echo "$json_output" | jq -r '.ping.latency // 0')
+            else
+                # Fallback to Python for JSON parsing
+                local parsed=$(printf '%s' "$json_output" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    dl = data.get('download', {}).get('bandwidth', 0)
+    ul = data.get('upload', {}).get('bandwidth', 0)
+    lat = data.get('ping', {}).get('latency', 0)
+    print(f'{dl},{ul},{lat}')
+except:
+    print('0,0,0')
+" 2>/dev/null)
+                local dl_bw=$(echo "$parsed" | awk -F, '{print $1}')
+                local ul_bw=$(echo "$parsed" | awk -F, '{print $2}')
+                local ping_ms=$(echo "$parsed" | awk -F, '{print $3}')
+            fi
+            
+            # Convert bandwidth (bytes/sec) to Mbps
+            local download_speed=$(echo "scale=2; ($dl_bw * 8) / 1000000" | bc -l 2>/dev/null || echo "0")
+            local upload_speed=$(echo "scale=2; ($ul_bw * 8) / 1000000" | bc -l 2>/dev/null || echo "0")
+            local latency=$(printf '%.2f' "${ping_ms:-0}" 2>/dev/null || echo "0")
+            
+            echo -e "${BLUE}Download: ${GREEN}${download_speed} Mbps${NC}"
+            echo -e "${BLUE}Upload: ${GREEN}${upload_speed} Mbps${NC}"
+            echo -e "${BLUE}Latency: ${GREEN}${latency} ms${NC}"
+        else
+            print_status $RED "Speedtest-cli failed, trying fallback method..."
+            run_speed_test_linux_fallback
+        fi
+    else
+        print_status $YELLOW "speedtest-cli not found, using fallback method..."
+        echo "To install speedtest-cli:"
+        echo "  Debian/Ubuntu: sudo apt install speedtest-cli"
+        echo "  Or via pip: pip install speedtest-cli"
+        echo ""
+        run_speed_test_linux_fallback
+    fi
+}
+
+# Fallback method for Linux when speedtest-cli is not available
+run_speed_test_linux_fallback() {
+    # Use Hetzner test file (100MB) as recommended
+    local test_url="https://ash-speed.hetzner.com/100MB.bin"
     local temp_file="/tmp/speed_test_$$"
     
     if ! command -v wget &> /dev/null; then
@@ -101,17 +154,17 @@ run_speed_test_linux() {
         exit 1
     fi
     
-    echo -e "${BLUE}Downloading test file...${NC}"
+    echo -e "${BLUE}Downloading test file (100MB)...${NC}"
     local start_time=$(date +%s.%N)
     if wget -q --progress=bar:force "$test_url" -O "$temp_file" 2>&1; then
         local end_time=$(date +%s.%N)
         local duration=$(echo "$end_time - $start_time" | bc -l 2>/dev/null || echo "1")
-        local file_size=$(stat -c%s "$temp_file" 2>/dev/null || echo "10485760") # 10MB fallback
+        local file_size=$(stat -c%s "$temp_file" 2>/dev/null || echo "104857600") # 100MB fallback
         local speed_mbps=$(echo "scale=2; ($file_size * 8) / ($duration * 1024 * 1024)" | bc -l 2>/dev/null || echo "0")
         
         echo -e "${BLUE}Download: ${GREEN}${speed_mbps} Mbps${NC}"
-        echo -e "${BLUE}Upload: ${GREEN}Testing...${NC}"
-        echo -e "${BLUE}Latency: ${GREEN}Testing...${NC}"
+        echo -e "${BLUE}Upload: ${GREEN}Not available (install speedtest-cli for upload testing)${NC}"
+        echo -e "${BLUE}Latency: ${GREEN}Not available (install speedtest-cli for latency testing)${NC}"
         
         rm -f "$temp_file"
     else
@@ -122,23 +175,53 @@ run_speed_test_linux() {
 
 # Function to run speed test on Windows
 run_speed_test_windows() {
-    local test_url="http://speedtest.wdc01.softlayer.com/downloads/test10.zip"
-    local temp_file="$TEMP\\speed_test_$$.zip"
-    
-    # Use PowerShell to download and measure speed
+    # Try speedtest-cli first (preferred method)
     local powershell_script="
-        \$startTime = Get-Date
         try {
-            Invoke-WebRequest -Uri '$test_url' -OutFile '$temp_file' -UseBasicParsing
-            \$endTime = Get-Date
-            \$duration = (\$endTime - \$startTime).TotalSeconds
-            \$fileSize = (Get-Item '$temp_file').Length
-            \$speedMbps = [math]::Round((\$fileSize * 8) / (\$duration * 1024 * 1024), 2)
-            Write-Output \"Download: \$speedMbps Mbps\"
-            Remove-Item '$temp_file' -ErrorAction SilentlyContinue
+            # Check if speedtest-cli is available
+            \$speedtestPath = Get-Command speedtest.exe -ErrorAction SilentlyContinue
+            if (\$speedtestPath) {
+                Write-Output 'Running speed test with speedtest-cli...'
+                \$json = & speedtest.exe --accept-license --accept-gdpr -f json 2>\$null
+                if (\$json) {
+                    \$data = \$json | ConvertFrom-Json
+                    \$dl = [math]::Round((\$data.download.bandwidth * 8) / 1000000, 2)
+                    \$ul = [math]::Round((\$data.upload.bandwidth * 8) / 1000000, 2)
+                    \$lat = [math]::Round([double]\$data.ping.latency, 2)
+                    Write-Output \"Download: \$dl Mbps\"
+                    Write-Output \"Upload: \$ul Mbps\"
+                    Write-Output \"Latency: \$lat ms\"
+                } else {
+                    Write-Output 'Speedtest-cli failed, trying fallback method...'
+                    throw 'Speedtest-cli failed'
+                }
+            } else {
+                Write-Output 'speedtest-cli not found, using fallback method...'
+                Write-Output 'To install speedtest-cli:'
+                Write-Output '  pip install speedtest-cli'
+                Write-Output ''
+                throw 'Speedtest-cli not found'
+            }
         } catch {
-            Write-Output 'Download test failed'
-            exit 1
+            # Fallback method using Hetzner test file
+            try {
+                Write-Output 'Downloading test file (100MB)...'
+                \$testUrl = 'https://ash-speed.hetzner.com/100MB.bin'
+                \$tempFile = \"\$env:TEMP\\speed_test_\$(Get-Random).bin\"
+                \$startTime = Get-Date
+                Invoke-WebRequest -Uri \$testUrl -OutFile \$tempFile -UseBasicParsing
+                \$endTime = Get-Date
+                \$duration = (\$endTime - \$startTime).TotalSeconds
+                \$fileSize = (Get-Item \$tempFile).Length
+                \$speedMbps = [math]::Round((\$fileSize * 8) / (\$duration * 1024 * 1024), 2)
+                Write-Output \"Download: \$speedMbps Mbps\"
+                Write-Output 'Upload: Not available (install speedtest-cli for upload testing)'
+                Write-Output 'Latency: Not available (install speedtest-cli for latency testing)'
+                Remove-Item \$tempFile -ErrorAction SilentlyContinue
+            } catch {
+                Write-Output 'Download test failed'
+                exit 1
+            }
         }
     "
     
@@ -255,56 +338,108 @@ log_speed_test() {
             fi
             ;;
         "linux")
-            # Use wget for logging on Linux
-            local test_url="http://speedtest.wdc01.softlayer.com/downloads/test10.zip"
-            local temp_file="/tmp/speed_test_$$"
-            local start_time=$(date +%s.%N)
-            if wget -q "$test_url" -O "$temp_file" 2>/dev/null; then
-                local end_time=$(date +%s.%N)
-                local duration=$(echo "$end_time - $start_time" | bc -l 2>/dev/null || echo "1")
-                local file_size=$(stat -c%s "$temp_file" 2>/dev/null || echo "10485760")
-                download_speed=$(echo "scale=2; ($file_size * 8) / ($duration * 1024 * 1024)" | bc -l 2>/dev/null || echo "0")
-                upload_speed=0  # Linux test doesn't measure upload
-                latency=0       # Linux test doesn't measure latency
-                responsiveness=0
-                
-                # Check performance (only download for Linux)
-                if check_performance "$download_speed" "$upload_speed" "$latency"; then
-                    status="DEGRADED"
+            # Prefer Ookla Speedtest CLI if available; fallback to wget method
+            if command -v speedtest >/dev/null 2>&1; then
+                local json_output=$(speedtest --accept-license --accept-gdpr -f json 2>/dev/null)
+                if [ -n "$json_output" ]; then
+                    if command -v jq >/dev/null 2>&1; then
+                        local dl_bw=$(echo "$json_output" | jq -r '.download.bandwidth // 0')
+                        local ul_bw=$(echo "$json_output" | jq -r '.upload.bandwidth // 0')
+                        local ping_ms=$(echo "$json_output" | jq -r '.ping.latency // 0')
+                    else
+                        # Fallback to Python for JSON parsing if jq is not available
+                        local parsed=$(printf '%s' "$json_output" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    dl = data.get('download', {}).get('bandwidth', 0)
+    ul = data.get('upload', {}).get('bandwidth', 0)
+    lat = data.get('ping', {}).get('latency', 0)
+    print(f'{dl},{ul},{lat}')
+except:
+    print('0,0,0')
+" 2>/dev/null)
+                        local dl_bw=$(echo "$parsed" | awk -F, '{print $1}')
+                        local ul_bw=$(echo "$parsed" | awk -F, '{print $2}')
+                        local ping_ms=$(echo "$parsed" | awk -F, '{print $3}')
+                    fi
+                    # Convert bandwidth (bytes/sec) to Mbps
+                    download_speed=$(echo "scale=2; ($dl_bw * 8) / 1000000" | bc -l 2>/dev/null || echo "0")
+                    upload_speed=$(echo "scale=2; ($ul_bw * 8) / 1000000" | bc -l 2>/dev/null || echo "0")
+                    latency=$(printf '%.2f' "${ping_ms:-0}" 2>/dev/null || echo "0")
+                    responsiveness=0
+                    if check_performance "$download_speed" "$upload_speed" "$latency"; then
+                        status="DEGRADED"
+                    else
+                        status="OK"
+                    fi
                 else
-                    status="OK"
+                    status="FAILED"
                 fi
-                
-                rm -f "$temp_file"
             else
-                status="FAILED"
+                # Fallback: simple wget-based download timing using Hetzner test file
+                local test_url="https://ash-speed.hetzner.com/100MB.bin"
+                local temp_file="/tmp/speed_test_$$"
+                local start_time=$(date +%s.%N)
+                if wget -q "$test_url" -O "$temp_file" 2>/dev/null; then
+                    local end_time=$(date +%s.%N)
+                    local duration=$(echo "$end_time - $start_time" | bc -l 2>/dev/null || echo "1")
+                    local file_size=$(stat -c%s "$temp_file" 2>/dev/null || echo "104857600") # 100MB fallback
+                    download_speed=$(echo "scale=2; ($file_size * 8) / ($duration * 1024 * 1024)" | bc -l 2>/dev/null || echo "0")
+                    upload_speed=0
+                    latency=0
+                    responsiveness=0
+                    if check_performance "$download_speed" "$upload_speed" "$latency"; then
+                        status="DEGRADED"
+                    else
+                        status="OK"
+                    fi
+                    rm -f "$temp_file"
+                else
+                    status="FAILED"
+                fi
             fi
             ;;
         "windows")
-            # Use PowerShell for logging on Windows
-            local test_url="http://speedtest.wdc01.softlayer.com/downloads/test10.zip"
-            local temp_file="$TEMP\\speed_test_$$.zip"
+            # Prefer Ookla Speedtest CLI on Windows via PowerShell
             local powershell_script="
-                \$startTime = Get-Date
                 try {
-                    Invoke-WebRequest -Uri '$test_url' -OutFile '$temp_file' -UseBasicParsing
-                    \$endTime = Get-Date
-                    \$duration = (\$endTime - \$startTime).TotalSeconds
-                    \$fileSize = (Get-Item '$temp_file').Length
-                    \$speedMbps = [math]::Round((\$fileSize * 8) / (\$duration * 1024 * 1024), 2)
-                    Write-Output \"\$speedMbps\"
-                    Remove-Item '$temp_file' -ErrorAction SilentlyContinue
+                    # Check if speedtest-cli is available
+                    \$speedtestPath = Get-Command speedtest.exe -ErrorAction SilentlyContinue
+                    if (\$speedtestPath) {
+                        \$json = & speedtest.exe --accept-license --accept-gdpr -f json 2>\$null
+                        if (\$json) {
+                            \$d = \$json | ConvertFrom-Json
+                            \$dl = [math]::Round((\$d.download.bandwidth * 8) / 1000000, 2)
+                            \$ul = [math]::Round((\$d.upload.bandwidth * 8) / 1000000, 2)
+                            \$lat = [math]::Round([double]\$d.ping.latency, 2)
+                            Write-Output \"\$dl,\$ul,\$lat\"
+                        } else {
+                            Write-Output 'ERROR'
+                        }
+                    } else {
+                        # Fallback method using Hetzner test file
+                        \$testUrl = 'https://ash-speed.hetzner.com/100MB.bin'
+                        \$tempFile = \"\$env:TEMP\\speed_test_\$(Get-Random).bin\"
+                        \$startTime = Get-Date
+                        Invoke-WebRequest -Uri \$testUrl -OutFile \$tempFile -UseBasicParsing
+                        \$endTime = Get-Date
+                        \$duration = (\$endTime - \$startTime).TotalSeconds
+                        \$fileSize = (Get-Item \$tempFile).Length
+                        \$speedMbps = [math]::Round((\$fileSize * 8) / (\$duration * 1024 * 1024), 2)
+                        Write-Output \"\$speedMbps,0,0\"
+                        Remove-Item \$tempFile -ErrorAction SilentlyContinue
+                    }
                 } catch {
                     Write-Output 'ERROR'
                 }
             "
-            download_speed=$(powershell -Command "$powershell_script" 2>/dev/null)
-            upload_speed=0  # Windows test doesn't measure upload
-            latency=0       # Windows test doesn't measure latency
-            responsiveness=0
-            
-            if [[ "$download_speed" != "ERROR" ]]; then
-                # Check performance (only download for Windows)
+            local result=$(powershell -Command "$powershell_script" 2>/dev/null)
+            if [[ "$result" != "ERROR" && -n "$result" ]]; then
+                IFS=',' read -r download_speed upload_speed latency <<EOF
+$result
+EOF
+                responsiveness=0
                 if check_performance "$download_speed" "$upload_speed" "$latency"; then
                     status="DEGRADED"
                 else
