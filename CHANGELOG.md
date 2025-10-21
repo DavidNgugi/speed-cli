@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.5] - 2025-01-27
+## [1.0.5] - 2025-10-21
 
 ### Added
 - **Linux Support**: Added comprehensive Linux speed testing with `speedtest-cli` integration
