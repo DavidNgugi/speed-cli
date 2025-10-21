@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="1.0.4"
+VERSION="1.0.5"
 REPO_URL="https://raw.githubusercontent.com/DavidNgugi/speed-cli/main"
 INSTALL_DIR="$HOME/scripts"
 LOG_DIR="$HOME/internet_logs"

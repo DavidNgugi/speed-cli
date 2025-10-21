@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.5] - 2025-01-27
+
+### Added
+- **Linux Support**: Added comprehensive Linux speed testing with `speedtest-cli` integration
+- **Windows Support**: Added comprehensive Windows speed testing with PowerShell integration
+- **Dependency Management**: Automatic installation of required dependencies on Linux and Windows
+- **Fallback Methods**: Reliable fallback using Hetzner test file (100MB) when speedtest-cli unavailable
+- **Cross-Platform Testing**: Improved platform detection and error handling
+
+### Fixed
+- **Linux Speed Testing**: Now uses `speedtest-cli` for accurate upload/download/latency measurements
+- **Windows Speed Testing**: Fixed PowerShell integration with proper error handling
+- **Syntax Errors**: Fixed bash syntax errors in PowerShell script strings
+- **Dependency Installation**: Added support for multiple Linux package managers (apt, yum, dnf, pacman)
+- **Windows Task Scheduler**: Automated setup with PowerShell script generation
+
+### Improved
+- **User Experience**: Clear installation guidance and error messages
+- **Reliability**: Better fallback methods when primary tools unavailable
+- **Documentation**: Updated installation instructions for all platforms
+
 ## [1.0.4] - 2025-10-20
 
 ### Fixed
